@@ -1,52 +1,363 @@
-import { Button, Card, Typography, useThemeColor } from "heroui-native";
-import type { JSX } from "react";
-import { View } from "react-native";
-import Svg, { Path } from "react-native-svg";
+import { Avatar, Chip, Surface, Typography } from "heroui-native";
+import { useState, type JSX } from "react";
+import { Linking, Pressable, ScrollView, View } from "react-native";
+import {
+  ActionItemRow,
+  type Activity,
+  ActivityCard,
+  Icon,
+  InitialsAvatar,
+  type Meeting,
+  MeetingCard,
+  type MultiPrepData,
+  MultiPrepSheet,
+  PillButton,
+  type PrepData,
+  PrepSheet,
+  PrimaryButton,
+  Screen,
+  SecondaryButton,
+  SectionHeader,
+  Tag,
+} from "@/components";
 
-function HeroUILogo({ tintColor }: { tintColor: string }): JSX.Element {
-  return (
-    <Svg width={90} height={30} viewBox="0 0 140 44" fill="none">
-      <Path
-        d="M0.677734 11.3847V24.0405C0.677734 24.6387 0.985209 25.1946 1.49107 25.5109L10.1195 30.9067C11.2693 31.6257 12.7586 30.796 12.7586 29.4363V18.7981C12.7586 18.186 13.0803 17.6194 13.605 17.3074L18.8683 14.1785V41.4437C18.8683 42.7988 20.3486 43.6293 21.4988 42.9195L30.4044 37.4229C30.9152 37.1076 31.2264 36.549 31.2264 35.9471V9.76484C31.2264 8.41634 29.759 7.58483 28.6085 8.28139L18.8683 14.1785V2.55643C18.8683 1.21158 17.408 0.379537 16.2574 1.06878L1.51927 9.89703C0.997365 10.2097 0.677734 10.7747 0.677734 11.3847Z"
-        fill={tintColor}
-      />
-      <Path
-        d="M63.8763 24.0707C63.8763 20.4817 62.4078 18.8253 59.4709 18.8253C56.1076 18.8253 53.7391 21.0799 53.7391 26.1412V37.7363H47.6756V5.52769H53.7391V17.3069C55.2075 14.9142 57.6234 13.7179 60.9394 13.7179C66.5764 13.7179 69.8924 17.1688 69.8924 22.9664V37.7363H63.8763V24.0707Z"
-        fill={tintColor}
-      />
-      <Path
-        d="M84.8996 38.4725C77.3677 38.4725 72.5832 33.5952 72.5832 26.0952C72.5832 18.6872 77.3203 13.7179 84.8996 13.7179C93.0947 13.7179 97.5475 19.5154 96.3158 27.6596H78.6467C78.9783 31.5247 81.252 33.7333 84.8996 33.7333C87.8839 33.7333 89.684 32.2149 90.1577 30.6964H96.1737C95.2263 35.2057 91.0577 38.4725 84.8996 38.4725ZM78.7888 23.6566H90.4419C90.3945 20.4817 88.3102 18.3191 84.7574 18.3191C81.5836 18.3191 79.3572 20.1596 78.7888 23.6566Z"
-        fill={tintColor}
-      />
-      <Path
-        d="M99.6225 20.3437C99.6225 16.5246 101.754 14.4541 105.828 14.4541H113.597V19.4234H105.686V37.7363H99.6225V20.3437Z"
-        fill={tintColor}
-      />
-      <Path
-        d="M126.863 38.4725C119.189 38.4725 114.31 33.5492 114.31 26.0952C114.31 18.6412 119.189 13.7179 126.863 13.7179C134.442 13.7179 139.322 18.6412 139.322 26.0952C139.322 33.5492 134.442 38.4725 126.863 38.4725ZM126.863 33.4572C130.653 33.4572 133.163 30.5584 133.163 26.0952C133.163 21.632 130.653 18.6872 126.863 18.6872C123.026 18.6872 120.515 21.632 120.515 26.0952C120.515 30.5584 123.026 33.4572 126.863 33.4572Z"
-        fill={tintColor}
-      />
-    </Svg>
-  );
-}
+/* ------------------------------------------------------------------ *
+ * Sample data — easy to edit while we design.
+ * ------------------------------------------------------------------ */
+
+const HEADER = {
+  date: "Wednesday, June 4",
+  greeting: "Good Morning, Tal",
+};
+
+const QUICK_ACTIONS = [
+  { key: "add", label: "Add Contact", icon: "addContact" as const },
+  { key: "note", label: "Log Note", icon: "logNote" as const },
+  { key: "invite", label: "Send Invite", icon: "sendInvite" as const },
+];
+
+const NEXT_MEETING = {
+  countdown: "In 25 min",
+  time: "10:00 AM",
+  duration: "30 min",
+  type: "Intro call",
+  name: "David Mayers",
+  initials: "DM",
+  company: "Meridian Capital",
+  tag: "Prospect",
+  meetingUrl: "https://zoom.us/j/123456789",
+  email: "david@meridiancapital.com",
+};
+
+/* ── Later Today card list (Meeting fields only — just for display) ── */
+
+const LATER_TODAY: Meeting[] = [
+  {
+    id: "m2",
+    time: "11:00 AM",
+    duration: "30 min",
+    type: "Intro call",
+    name: "David Mayers",
+    initials: "DM",
+    company: "Meridian Capital",
+    tag: "Prospect",
+  },
+  {
+    id: "m3",
+    time: "2:00 PM",
+    duration: "45 min",
+    type: "Portfolio review",
+    name: "Sarah Kim & James Chen",
+    initials: "SK",
+    company: "Initech Ventures",
+    tag: "Investor",
+  },
+];
+
+/* ── Single-contact prep data: David Mayers ── */
+
+const DAVID_PREP: PrepData = {
+  id: "m2",
+  time: "11:00 AM",
+  duration: "30 min",
+  type: "Intro call",
+  name: "David Mayers",
+  initials: "DM",
+  company: "Meridian Capital",
+  tag: "Prospect",
+  aiBrief:
+    "First meeting with David — referred by John Kessler at Summit RE. No prior CRM contact. He is evaluating 2-3 CRE funds this quarter with a target commitment of $500K+. Lead with fund thesis and have data room ready to send at end of call.",
+  email: "david@meridiancapital.com",
+  phone: "+1-212-555-0142",
+  dataRoomUrl: "https://app.agora.com/data-room/meridian",
+  lastNote: {
+    date: "First contact",
+    title: "New prospect — inbound via referral",
+    desc: "David Mayers was referred by John Kessler at Summit RE Partners. He is actively evaluating 2-3 CRE funds this quarter and has a target first commitment of $500K+.",
+  },
+  actionItems: [
+    { id: "p1", label: "Prepare fund thesis one-pager", overdue: false },
+    { id: "p2", label: "Send data room invite after call", overdue: false },
+  ],
+  status: {
+    stage: "First Touch",
+    offering: "Agora Fund III",
+    dataRoom: "not_sent",
+  },
+};
+
+/* ── Multi-contact prep data: Sarah Kim & James Chen ── */
+
+const SARAH_MULTI: MultiPrepData = {
+  id: "m3",
+  time: "2:00 PM",
+  duration: "45 min",
+  type: "Portfolio review",
+  aiBrief:
+    "Quarterly review with Sarah and James. Sarah expressed co-invest interest in the Austin logistics deal twice last quarter — bring it up if she doesn't. James was introduced by Sarah in March and is evaluating a first commitment alongside her. Goal: align both on the co-invest opportunity and confirm Q2 distribution timing.",
+  contacts: [
+    {
+      id: "c1",
+      name: "Sarah Kim",
+      initials: "SK",
+      company: "Initech Ventures",
+      tag: "Investor",
+      email: "sarah.kim@initech.com",
+      phone: "+1-415-555-0198",
+      lastNote: {
+        date: "May 28",
+        title: "Q1 fund performance call",
+        desc: "Called to review Q1 returns. Sarah is pleased with the 14.2% net IRR and expressed strong interest in the co-invest opportunity in the Austin logistics deal. Asked for an update in 4-6 weeks.",
+      },
+      actionItems: [
+        {
+          id: "p3",
+          label: "Send Austin logistics co-invest deck",
+          overdue: true,
+        },
+        { id: "p4", label: "Confirm Q2 distribution schedule", overdue: false },
+      ],
+      status: {
+        stage: "Active LP",
+        offering: "Agora Fund III",
+        dataRoom: "opened",
+      },
+    },
+    {
+      id: "c2",
+      name: "James Chen",
+      initials: "JC",
+      company: "Initech Ventures",
+      tag: "Prospect",
+      email: "james.chen@initech.com",
+      phone: "+1-415-555-0271",
+      dataRoomUrl: "https://app.agora.com/data-room/initech-james",
+      lastNote: {
+        date: "March 14",
+        title: "Introduction via Sarah Kim",
+        desc: "First conversation with James. He is Initech's new investment director and is evaluating a first commitment to Fund III alongside Sarah. Requested the fund overview deck and data room access.",
+      },
+      actionItems: [
+        { id: "p5", label: "Send fund overview deck", overdue: true },
+        { id: "p6", label: "Grant data room access", overdue: false },
+      ],
+      status: {
+        stage: "In Discussion",
+        offering: "Agora Fund III",
+        dataRoom: "not_sent",
+      },
+    },
+  ],
+};
+
+const ACTION_ITEMS = [
+  { id: "a1", label: "Send data room invite to Jane Doe" },
+  { id: "a2", label: "Follow up with Mark Lee re: subscription" },
+  { id: "a3", label: "Prepare Q2 deck for Meridian Capital" },
+];
+
+const RECENT_ACTIVITY: Activity[] = [
+  {
+    id: "act1",
+    kind: "note",
+    actor: "Tal",
+    action: "added a",
+    noun: "Note",
+    time: "11:30",
+    title: "Q2 fund performance",
+    desc: "Called to review quarterly returns. Sarah is pleased with the 14.2% net IRR and expressed strong interest in the…",
+  },
+  {
+    id: "act2",
+    kind: "meeting",
+    actor: "Tal",
+    action: "logged a",
+    noun: "Meeting",
+    time: "11:30",
+    title: "Q2 fund performance",
+    desc: "Called to review quarterly returns. Sarah is pleased with the 14.2% net IRR and expressed strong interest in the…",
+  },
+];
+
+/* ------------------------------------------------------------------ *
+ * Home / Today screen
+ * ------------------------------------------------------------------ */
 
 export default function HomeTab(): JSX.Element {
-  const themeColorForeground = useThemeColor("foreground");
+  const [done, setDone] = useState<Record<string, boolean>>({});
+  const toggle = (id: string) => setDone((d) => ({ ...d, [id]: !d[id] }));
+
+  // Single-contact prep sheet state
+  const [prepData, setPrepData] = useState<PrepData | null>(null);
+  // Multi-contact prep sheet state
+  const [multiPrepData, setMultiPrepData] = useState<MultiPrepData | null>(null);
+
+  const m = NEXT_MEETING;
+
+  // Map meeting id → which prep sheet to open
+  const handlePrep = (meetingId: string) => {
+    if (meetingId === "m2") setPrepData(DAVID_PREP);
+    else if (meetingId === "m3") setMultiPrepData(SARAH_MULTI);
+  };
 
   return (
-    <View className="flex-1 bg-background justify-center px-6">
-      <Card className="items-center gap-8">
-        <HeroUILogo tintColor={themeColorForeground} />
-        <Typography.Paragraph className="text-center">
-          A modern starter for React Native, preconfigured with HeroUI Native, Uniwind, and Expo
-          Router. Edit{" "}
-          <Typography.Paragraph className="font-semibold">
-            app/(tabs)/index.tsx
-          </Typography.Paragraph>{" "}
-          and watch it reload.
-        </Typography.Paragraph>
-        <Button className="w-full">Get started</Button>
-      </Card>
-    </View>
+    <Screen>
+      {/* Prep sheets — rendered outside the scroll tree */}
+      <PrepSheet data={prepData} onClose={() => setPrepData(null)} />
+      <MultiPrepSheet
+        data={multiPrepData}
+        onClose={() => setMultiPrepData(null)}
+      />
+
+      {/* Header */}
+      <View className="flex-row items-start justify-between">
+        <View className="flex-1 gap-1">
+          <Typography type="body-sm" color="muted">
+            {HEADER.date}
+          </Typography>
+          <Typography className="text-3xl" weight="bold">
+            {HEADER.greeting}
+          </Typography>
+        </View>
+        <View className="flex-row items-center gap-2 ml-3 mt-1">
+          <View>
+            <Pressable className="h-10 w-10 rounded-full border border-border items-center justify-center">
+              <Icon name="bell" size="lg" />
+            </Pressable>
+            <View className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-danger" />
+          </View>
+          <Avatar size="sm" variant="default" color="warning">
+            <Avatar.Fallback>
+              <Icon name="person" size="md" color="#434343" />
+            </Avatar.Fallback>
+          </Avatar>
+        </View>
+      </View>
+
+      {/* Quick actions — horizontal scroll, content-sized pills */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 8 }}
+      >
+        {QUICK_ACTIONS.map((a) => (
+          <PillButton key={a.key} icon={a.icon}>
+            {a.label}
+          </PillButton>
+        ))}
+      </ScrollView>
+
+      {/* Next-meeting hero card */}
+      <Surface className="gap-4 rounded-2xl">
+        <View className="flex-row items-center justify-between">
+          <Chip variant="soft" color="accent" size="sm">
+            <Chip.Label className="text-xs">{m.countdown}</Chip.Label>
+          </Chip>
+          <Typography type="body-sm" color="muted">
+            {m.time} · {m.duration}
+          </Typography>
+        </View>
+
+        <View className="gap-3">
+          <Typography type="h4">{m.type}</Typography>
+          <View className="flex-row items-center gap-3">
+            <InitialsAvatar initials={m.initials} />
+            <View className="flex-1 gap-1">
+              <Typography weight="semibold" className="text-sm">
+                {m.name}
+              </Typography>
+              <View className="flex-row items-center gap-2">
+                <Typography type="body-sm" color="muted">
+                  {m.company}
+                </Typography>
+                <Tag label={m.tag} />
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View className="flex-row gap-3">
+          <PrimaryButton
+            size="sm"
+            className="flex-1"
+            icon="video"
+            onPress={() => Linking.openURL(m.meetingUrl)}
+          >
+            Join meeting
+          </PrimaryButton>
+          <SecondaryButton
+            size="sm"
+            className="flex-1"
+            icon="email"
+            onPress={() => Linking.openURL(`mailto:${m.email}`)}
+          >
+            Email
+          </SecondaryButton>
+        </View>
+      </Surface>
+
+      {/* Later today */}
+      <View>
+        <SectionHeader title="Later today" count={LATER_TODAY.length} linkLabel="Calendar" />
+        <View className="gap-3">
+          {LATER_TODAY.map((meeting) => (
+            <MeetingCard
+              key={meeting.id}
+              m={meeting}
+              onPrep={() => handlePrep(meeting.id)}
+            />
+          ))}
+        </View>
+      </View>
+
+      {/* Action items */}
+      <View>
+        <SectionHeader title="Action items" count={ACTION_ITEMS.length} />
+        <Surface className="p-0 rounded-2xl">
+          {ACTION_ITEMS.map((item, i) => (
+            <ActionItemRow
+              key={item.id}
+              label={item.label}
+              selected={!!done[item.id]}
+              onToggle={() => toggle(item.id)}
+              showSeparator={i > 0}
+            />
+          ))}
+        </Surface>
+      </View>
+
+      {/* Recent activity */}
+      <View>
+        <SectionHeader title="Recent Activity" count={RECENT_ACTIVITY.length} linkLabel="See all" />
+        <Typography type="body-sm" color="muted" className="mb-3 text-xs">
+          Today
+        </Typography>
+        <View className="gap-3">
+          {RECENT_ACTIVITY.map((item) => (
+            <ActivityCard key={item.id} item={item} />
+          ))}
+        </View>
+      </View>
+    </Screen>
   );
 }

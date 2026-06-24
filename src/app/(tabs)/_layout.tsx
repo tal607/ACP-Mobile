@@ -1,31 +1,17 @@
-import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
-import type { ComponentProps, JSX } from "react";
-import type { ColorValue } from "react-native";
-
-type IoniconName = ComponentProps<typeof Ionicons>["name"];
-
-function TabIcon({ name, color }: { name: IoniconName; color: ColorValue }): JSX.Element {
-  return <Ionicons name={name} size={24} color={color} />;
-}
+import type { JSX } from "react";
+import { BottomNav } from "@/components";
 
 export default function TabsLayout(): JSX.Element {
   return (
-    <Tabs screenOptions={{ headerShown: false }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Home",
-          tabBarIcon: ({ color }) => <TabIcon name="home-outline" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: "Explore",
-          tabBarIcon: ({ color }) => <TabIcon name="compass-outline" color={color} />,
-        }}
-      />
+    <Tabs
+      screenOptions={{ headerShown: false }}
+      tabBar={(props) => <BottomNav {...props} />}
+    >
+      <Tabs.Screen name="index" options={{ title: "Home" }} />
+      <Tabs.Screen name="contacts" options={{ title: "Contacts" }} />
+      <Tabs.Screen name="calendar" options={{ title: "Calendar" }} />
+      <Tabs.Screen name="activity" options={{ title: "Activity" }} />
     </Tabs>
   );
 }

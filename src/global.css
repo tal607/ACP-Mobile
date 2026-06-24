@@ -6,3 +6,45 @@
 /* End-user path: heroui-native lives in the project's node_modules, one
    level up from this src/global.css file. */
 @source '../node_modules/heroui-native/lib';
+
+/* ============================================================
+   APP THEME OVERRIDES  —  single source of truth for brand styling.
+   Values come from the Agora design system (Figma Tokens.json):
+   raw palette = "Agora primitives"; HeroUI semantic tokens are
+   mapped to those primitives. Change a value here → updates EVERY
+   HeroUI component + Tailwind class across ALL screens.
+   See DESIGN.md for the full "to change X, edit Y" guide.
+   ============================================================ */
+/*
+   Agora palette reference (from Figma Tokens.json):
+     ocean-800 #0C1B36 (brand) · ocean-700 #354258
+     neutral 100 #FFFFFF · 200 #FAFAFA · 300 #F5F5F5 · 400 #F0F0F0 · 500 #D9D9D9
+             600 #BFBFBF · 700 #8C8C8C · 800 #595959 · 900 #434343
+     blue 500 #597EF7 · 600 #2F54EB   green 500 #73D13D   red 500 #FF4D4F   orange 500 #FFA940
+     snow #FCFCFC
+   Semantic tokens below use DIRECT hex (no var() indirection) so both Tailwind
+   classes and HeroUI's useThemeColor resolve them reliably.
+
+   NOTE on the selector: HeroUI defines its light theme via `:where(.light, .light *)`
+   (zero specificity) and emits it AFTER this file, so an equal-specificity rule would
+   lose. We therefore target `.light, .light *` (specificity 0,1,0) and keep it UNLAYERED
+   so it reliably wins over HeroUI's layered defaults. `.light` is set by Uniwind's
+   ScopedTheme (we lock light mode in app/_layout.tsx).
+*/
+.light,
+.light * {
+  --accent: #2f54eb !important; /* blue/600 */
+  --accent-foreground: #ffffff !important; /* neutral/100 */
+  --foreground: #434343 !important; /* text/primary · neutral/900 */
+  --muted: #8c8c8c !important; /* text/secondary_light · neutral/700 */
+  --background: #fcfcfc !important; /* surface/snow */
+  --surface: #ffffff !important; /* surface/white */
+  --surface-secondary: #f5f5f5 !important; /* neutral/300 */
+  --border: #f0f0f0 !important; /* border/neutral/light */
+  --separator: #d9d9d9 !important; /* border/neutral/strong */
+  --success: #73d13d !important; /* green/500 */
+  --danger: #ff4d4f !important; /* red/500 */
+  --warning: #ffa940 !important; /* orange/500 */
+  --warning-foreground: #434343 !important; /* dark text on orange */
+  --link: #2f54eb !important; /* text/link · blue/600 */
+}
