@@ -39,6 +39,9 @@ yarn-error.*
 # TypeScript
 *.tsbuildinfo
 
+# Markdown notes (README.md, DESIGN.md, MEMORY.md are already tracked and stay tracked)
+*.md
+
 # Generated native folders
 /ios
 /android

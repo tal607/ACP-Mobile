@@ -335,7 +335,7 @@ export const CONTACTS: ContactDetailData[] = [
   },
   {
     id: "c-em",
-    name: "Eric Moss",
+    name: "Eric Moss2",
     initials: "EM",
     company: "Summit RE Partners",
     tag: "Prospect",
