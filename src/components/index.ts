@@ -16,3 +16,17 @@ export { ActivityCard, type Activity } from "./ActivityCard";
 export { MeetingCard, type Meeting } from "./MeetingCard";
 export { PrepSheet, type PrepData, type PrepActionItem, type PrepLastNote, type PrepStatus } from "./PrepSheet";
 export { MultiPrepSheet, type MultiPrepData, type MultiPrepContact } from "./MultiPrepSheet";
+export {
+  ContactSheet,
+  type ContactData,
+  type ContactStatus,
+  type ContactActionItem,
+  type ContactLastNote,
+} from "./ContactSheet";
+export { SearchOverlay } from "./SearchOverlay";
+export {
+  FilterSheet,
+  type FilterState,
+  EMPTY_FILTERS,
+  countActiveFilters,
+} from "./FilterSheet";
