@@ -5,6 +5,7 @@ import { Linking, Pressable, ScrollView, Share, StyleSheet, TextInput, View } fr
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ActivityCard,
+  FeedDateSep,
   CollapseCard,
   ContactActionSheet,
   Icon,
@@ -446,7 +447,13 @@ function DetailsTab({ contact }: { contact: ContactDetailData }): JSX.Element {
 }
 
 /** Activity tab content. */
-function ActivityTab({ activities }: { activities: Activity[] }): JSX.Element {
+function ActivityTab({
+  activities,
+  onActivityPress,
+}: {
+  activities: Activity[];
+  onActivityPress: (item: Activity) => void;
+}): JSX.Element {
   if (activities.length === 0) {
     return (
       <View className="items-center justify-center py-16 gap-2">
@@ -461,16 +468,32 @@ function ActivityTab({ activities }: { activities: Activity[] }): JSX.Element {
     );
   }
   return (
-    <View className="gap-3">
-      <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>
-        Recent
-      </Typography>
-      {activities.map((item) => (
-        <ActivityCard key={item.id} item={item} />
-      ))}
+    <View>
+      <FeedDateSep label="Recent" />
+      <View style={{ position: "relative" }}>
+        <View style={activityTabStyles.spine} />
+        {activities.map((item) => (
+          <ActivityCard
+            key={item.id}
+            item={item}
+            onPress={() => onActivityPress(item)}
+          />
+        ))}
+      </View>
     </View>
   );
 }
+
+const activityTabStyles = StyleSheet.create({
+  spine: {
+    position: "absolute",
+    left: 11,
+    top: 10,
+    bottom: 10,
+    width: 1,
+    backgroundColor: "#ebebeb",
+  },
+});
 
 /** Stub tab for Offerings, Documents. */
 function PlaceholderTab({ label }: { label: string }): JSX.Element {
@@ -696,11 +719,14 @@ export default function ContactPage(): JSX.Element {
   const [isFavorite, setIsFavorite] = useState(false);
   const [actionSheetOpen, setActionSheetOpen] = useState(false);
 
-  // Activity creation state
+  // Activity state
   const [localActivities, setLocalActivities] = useState<Activity[]>(() => contact?.activity ?? []);
   const [showActivityPicker, setShowActivityPicker] = useState(false);
   const [activityFormKind, setActivityFormKind] = useState<ActivityFormKind | null>(null);
+  const [activityFormInitial, setActivityFormInitial] = useState<Activity | null>(null);
+  const [activityFormReadOnly, setActivityFormReadOnly] = useState(false);
   const [showActivityTask, setShowActivityTask] = useState(false);
+  const [taskInitial, setTaskInitial] = useState<Activity | null>(null);
 
   // Record this contact as recently viewed
   useEffect(() => {
@@ -717,9 +743,46 @@ export default function ContactPage(): JSX.Element {
   };
 
   const handleActivitySave = (feedActivity: FeedActivity) => {
-    setLocalActivities((prev) => [feedActivity as Activity, ...prev]);
+    const isEdit = localActivities.some((a) => a.id === feedActivity.id);
+    if (isEdit) {
+      setLocalActivities((prev) =>
+        prev.map((a) => (a.id === feedActivity.id ? (feedActivity as Activity) : a))
+      );
+    } else {
+      setLocalActivities((prev) => [feedActivity as Activity, ...prev]);
+    }
     setActivityFormKind(null);
+    setActivityFormInitial(null);
+    setActivityFormReadOnly(false);
     setShowActivityTask(false);
+    setTaskInitial(null);
+  };
+
+  const handleActivityDelete = (id: string) => {
+    setLocalActivities((prev) => prev.filter((a) => a.id !== id));
+    setActivityFormKind(null);
+    setActivityFormInitial(null);
+    setShowActivityTask(false);
+    setTaskInitial(null);
+  };
+
+  const openActivityDetail = (item: Activity) => {
+    if (item.kind === "task") {
+      setTaskInitial(item);
+      setShowActivityTask(true);
+    } else if (item.kind === "synced-meeting") {
+      setActivityFormInitial(item);
+      setActivityFormReadOnly(true);
+      setActivityFormKind("meeting");
+    } else if (item.kind === "synced-email") {
+      setActivityFormInitial(item);
+      setActivityFormReadOnly(true);
+      setActivityFormKind("email");
+    } else {
+      setActivityFormInitial(item);
+      setActivityFormReadOnly(false);
+      setActivityFormKind(item.kind as ActivityFormKind);
+    }
   };
 
   /* Not-found fallback */
@@ -933,7 +996,12 @@ export default function ContactPage(): JSX.Element {
         {/* [2] Tab content */}
         <View className="px-5 pt-5" style={{ paddingBottom: activeTab === "activity" ? 100 : 0 }}>
           {activeTab === "details" && <DetailsTab contact={contact} />}
-          {activeTab === "activity" && <ActivityTab activities={localActivities} />}
+          {activeTab === "activity" && (
+            <ActivityTab
+              activities={localActivities}
+              onActivityPress={openActivityDetail}
+            />
+          )}
           {activeTab === "investments" && <InvestmentsTab contact={contact} />}
           {activeTab === "offerings" && <PlaceholderTab label="Offerings" />}
           {activeTab === "documents" && <PlaceholderTab label="Documents" />}
@@ -959,15 +1027,20 @@ export default function ContactPage(): JSX.Element {
       <ActivityFormSheet
         kind={activityFormKind}
         visible={activityFormKind !== null}
-        onClose={() => setActivityFormKind(null)}
+        onClose={() => { setActivityFormKind(null); setActivityFormInitial(null); setActivityFormReadOnly(false); }}
         onSave={handleActivitySave}
-        defaultContact={contact}
+        onDelete={handleActivityDelete}
+        defaultContact={activityFormInitial ? undefined : contact}
+        initialActivity={activityFormInitial ?? undefined}
+        readOnly={activityFormReadOnly}
       />
       <CreateTaskSheet
         visible={showActivityTask}
-        onClose={() => setShowActivityTask(false)}
+        onClose={() => { setShowActivityTask(false); setTaskInitial(null); }}
         onSave={handleActivitySave}
-        defaultContact={contact}
+        onDelete={handleActivityDelete}
+        defaultContact={taskInitial ? undefined : contact}
+        initialActivity={taskInitial ?? undefined}
       />
     </SafeAreaView>
   );

@@ -12,7 +12,7 @@ export { Tag } from "./ui/Tag";
 
 // Domain cards
 export { ActionItemRow } from "./ActionItemRow";
-export { ActivityCard, type Activity } from "./ActivityCard";
+export { ActivityCard, FeedDateSep, type Activity } from "./ActivityCard";
 export { MeetingCard, type Meeting } from "./MeetingCard";
 export { PrepSheet, type PrepData, type PrepActionItem, type PrepLastNote, type PrepStatus } from "./PrepSheet";
 export { MultiPrepSheet, type MultiPrepData, type MultiPrepContact } from "./MultiPrepSheet";

@@ -1,5 +1,4 @@
-import { Typography } from "heroui-native";
-import { useEffect, useState, type JSX } from "react";
+import { useEffect, useRef, useState, type JSX } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -10,12 +9,14 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Chip, Typography } from "heroui-native";
 import { ScopedTheme } from "uniwind";
-import { ACTIVITY, TONE_HEX, TONE_SOFT_BG } from "@/theme/tokens";
+import { ACTIVITY, TONE_HEX } from "@/theme/tokens";
 import { CONTACTS, type ContactDetailData } from "@/data/contacts";
 import type { FeedActivity } from "@/data/activities";
 import { Icon } from "./ui/Icon";
 import { InitialsAvatar } from "./ui/InitialsAvatar";
+import type { Activity } from "./ActivityCard";
 
 /* ------------------------------------------------------------------ *
  * Types & config
@@ -23,86 +24,139 @@ import { InitialsAvatar } from "./ui/InitialsAvatar";
 
 export type ActivityFormKind = "note" | "call" | "meeting" | "email";
 
-const KIND_CONFIG: Record<ActivityFormKind, {
-  label: string;
-  subjectPlaceholder: string;
-  bodyPlaceholder: string;
-  actionWord: string;
-  noun: string;
-}> = {
+const KIND_CONFIG: Record<
+  ActivityFormKind,
+  {
+    label: string;
+    titlePlaceholder: string;
+    bodyPlaceholder: string;
+    actionWord: string;
+    noun: string;
+    mockTranscription: string;
+  }
+> = {
   note: {
     label: "Note",
-    subjectPlaceholder: "Type subject",
-    bodyPlaceholder: "Write something about this note",
+    titlePlaceholder: "Untitled note...",
+    bodyPlaceholder: "Write your note...",
     actionWord: "added a",
     noun: "Note",
+    mockTranscription:
+      "Checked in on recent activity. They mentioned renewed interest in the growth fund — worth a follow-up next week.",
   },
   call: {
-    label: "Call",
-    subjectPlaceholder: "Type subject",
-    bodyPlaceholder: "Write something about this call",
+    label: "Log call",
+    titlePlaceholder: "Untitled call...",
+    bodyPlaceholder: "What happened on this call...",
     actionWord: "logged a",
     noun: "Call",
+    mockTranscription:
+      "Quick check-in call. Discussed timeline and next steps. They want the full deck before the end of the week.",
   },
   meeting: {
-    label: "Meeting",
-    subjectPlaceholder: "Meeting title",
-    bodyPlaceholder: "Write something about this meeting",
+    label: "Log meeting",
+    titlePlaceholder: "Untitled meeting...",
+    bodyPlaceholder: "What happened in this meeting...",
     actionWord: "logged a",
     noun: "Meeting",
+    mockTranscription:
+      "Good meeting — covered Q3 numbers and pipeline. Strong interest in the new fund. Need to schedule a follow-up.",
   },
   email: {
-    label: "Logged Email",
-    subjectPlaceholder: "Type subject",
-    bodyPlaceholder: "Write something about this logged email",
+    label: "Log email",
+    titlePlaceholder: "Untitled email...",
+    bodyPlaceholder: "What was this email about...",
     actionWord: "logged an",
     noun: "Email",
+    mockTranscription:
+      "Followed up on the previous thread regarding investment terms. Waiting on their response by end of week.",
   },
 };
+
+const DATE_OPTIONS = ["Today", "Yesterday", "2 days ago", "This week"];
+
+const fmtTime = (s: number) =>
+  `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
 /* ------------------------------------------------------------------ *
  * Sub-components
  * ------------------------------------------------------------------ */
 
-/** A static non-interactive pill chip for the bottom metadata row. */
-function MetaChip({ label, icon }: { label: string; icon?: string }): JSX.Element {
+/** Single property row — icon · label · value */
+function PropRow({
+  icon,
+  label,
+  children,
+  onPress,
+}: {
+  icon: string;
+  label: string;
+  children: React.ReactNode;
+  onPress?: () => void;
+}): JSX.Element {
   return (
-    <View style={chipStyles.chip}>
-      {icon ? (
-        <Icon name={icon as never} size="sm" tone="muted" />
-      ) : null}
-      <Typography style={chipStyles.label}>{label}</Typography>
+    <Pressable onPress={onPress} style={propStyles.row} hitSlop={{ top: 2, bottom: 2 }}>
+      <View style={propStyles.iconWrap}>
+        <Icon name={icon as never} size={15} tone="muted" />
+      </View>
+      <Typography style={propStyles.label}>{label}</Typography>
+      <View style={propStyles.valueWrap}>{children}</View>
+    </Pressable>
+  );
+}
+
+/** Slim badge using HeroUI Chip soft variant */
+function PropChip({
+  label,
+  color = "accent",
+}: {
+  label: string;
+  color?: "accent" | "success" | "warning" | "danger" | "default";
+}): JSX.Element {
+  return (
+    <Chip size="sm" variant="soft" color={color}>
+      <Chip.Label>{label}</Chip.Label>
+    </Chip>
+  );
+}
+
+const propStyles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    height: 42,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#e4e4e7",
+  },
+  iconWrap: { width: 22, alignItems: "center" },
+  label: { fontSize: 13, color: TONE_HEX.muted, width: 100, paddingLeft: 8 },
+  valueWrap: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },
+  valueText: { fontSize: 13, color: TONE_HEX.foreground },
+  mutedText: { fontSize: 13, color: TONE_HEX.muted },
+});
+
+/** Waveform animation bars */
+function Waveform({ heights }: { heights: number[] }): JSX.Element {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 2, flex: 1 }}>
+      {heights.map((h, i) => (
+        <View
+          key={i}
+          style={{
+            width: 3,
+            height: h,
+            backgroundColor: "#ef4444",
+            borderRadius: 2,
+          }}
+        />
+      ))}
     </View>
   );
 }
 
-const chipStyles = StyleSheet.create({
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#e4e4e7",
-    backgroundColor: "#ffffff",
-  },
-  label: {
-    fontSize: 12,
-    color: TONE_HEX.muted,
-  },
-  activeChip: {
-    borderColor: TONE_HEX.accent,
-    backgroundColor: `${TONE_HEX.accent}0d`,
-  },
-  activeLabel: {
-    color: TONE_HEX.accent,
-  },
-});
-
 /* ------------------------------------------------------------------ *
- * Contact picker overlay (shown inline when picking a contact)
+ * Contact picker overlay
  * ------------------------------------------------------------------ */
 
 function ContactPickerOverlay({
@@ -125,22 +179,19 @@ function ContactPickerOverlay({
     : CONTACTS;
 
   return (
-    <View style={pickerStyles.container}>
-      {/* Header */}
-      <View style={pickerStyles.header}>
-        <Pressable onPress={onClose} hitSlop={12} style={pickerStyles.backBtn}>
+    <View style={cpStyles.container}>
+      <View style={cpStyles.header}>
+        <Pressable onPress={onClose} hitSlop={12} style={cpStyles.backBtn}>
           <Icon name="back" size="md" tone="foreground" />
         </Pressable>
         <Typography weight="semibold" style={{ fontSize: 15, flex: 1 }}>
           Select Contact
         </Typography>
       </View>
-
-      {/* Search */}
-      <View style={pickerStyles.searchRow}>
+      <View style={cpStyles.searchRow}>
         <Icon name="search" size="sm" tone="muted" />
         <TextInput
-          style={pickerStyles.searchInput}
+          style={cpStyles.searchInput}
           placeholder="Search contacts..."
           placeholderTextColor={TONE_HEX.muted}
           value={query}
@@ -155,22 +206,16 @@ function ContactPickerOverlay({
           </Pressable>
         )}
       </View>
-
-      {/* Contact list */}
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {filtered.map((contact, i) => (
           <View key={contact.id}>
-            {i > 0 && <View style={pickerStyles.hairline} />}
-            <Pressable onPress={() => onSelect(contact)} style={pickerStyles.contactRow}>
+            {i > 0 && <View style={cpStyles.hairline} />}
+            <Pressable onPress={() => onSelect(contact)} style={cpStyles.row}>
               <InitialsAvatar initials={contact.initials} size="sm" />
               <View style={{ flex: 1 }}>
-                <Typography type="body-sm" weight="semibold">
-                  {contact.name}
-                </Typography>
+                <Typography type="body-sm" weight="semibold">{contact.name}</Typography>
                 {contact.company ? (
-                  <Typography type="body-xs" color="muted">
-                    {contact.company}
-                  </Typography>
+                  <Typography type="body-xs" color="muted">{contact.company}</Typography>
                 ) : null}
               </View>
               {selected?.id === contact.id && (
@@ -184,7 +229,7 @@ function ContactPickerOverlay({
   );
 }
 
-const pickerStyles = StyleSheet.create({
+const cpStyles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFill,
     backgroundColor: "#ffffff",
@@ -219,17 +264,9 @@ const pickerStyles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: "#f5f5f5",
   },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: TONE_HEX.foreground,
-  },
-  hairline: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: "#e4e4e7",
-    marginLeft: 60,
-  },
-  contactRow: {
+  searchInput: { flex: 1, fontSize: 14, color: TONE_HEX.foreground },
+  hairline: { height: StyleSheet.hairlineWidth, backgroundColor: "#e4e4e7", marginLeft: 60 },
+  row: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
@@ -239,7 +276,7 @@ const pickerStyles = StyleSheet.create({
 });
 
 /* ------------------------------------------------------------------ *
- * Main ActivityFormSheet
+ * Main component
  * ------------------------------------------------------------------ */
 
 export function ActivityFormSheet({
@@ -247,30 +284,75 @@ export function ActivityFormSheet({
   visible,
   onClose,
   onSave,
+  onDelete,
   defaultContact,
+  initialActivity,
+  readOnly,
 }: {
   kind: ActivityFormKind | null;
   visible: boolean;
   onClose: () => void;
   onSave: (activity: FeedActivity) => void;
+  onDelete?: (id: string) => void;
   defaultContact?: ContactDetailData;
+  initialActivity?: Activity;
+  readOnly?: boolean;
 }): JSX.Element | null {
-  const [subject, setSubject] = useState("");
+  const titleRef = useRef<TextInput>(null);
+
+  const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [selectedContact, setSelectedContact] = useState<ContactDetailData | null>(null);
   const [showContactPicker, setShowContactPicker] = useState(false);
   const [followUp, setFollowUp] = useState(false);
+  const [selectedDate, setSelectedDate] = useState("Today");
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
-  // Reset state every time the sheet opens; pre-fill defaultContact if provided
+  // Voice recording
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSecs, setRecordingSecs] = useState(0);
+  const [waveHeights, setWaveHeights] = useState<number[]>(Array(14).fill(6));
+
+  const isEditMode = !!initialActivity && !readOnly;
+  const isViewMode = !!initialActivity && !!readOnly;
+
+  // Reset / pre-fill state when the sheet opens
   useEffect(() => {
     if (visible) {
-      setSubject("");
-      setBody("");
+      if (initialActivity) {
+        setTitle(initialActivity.title ?? "");
+        setBody(initialActivity.desc ?? "");
+        setSelectedDate(initialActivity.time);
+      } else {
+        setTitle("");
+        setBody("");
+        setSelectedDate("Today");
+      }
       setSelectedContact(defaultContact ?? null);
       setShowContactPicker(false);
       setFollowUp(false);
+      setDatePickerOpen(false);
+      setIsRecording(false);
+      setRecordingSecs(0);
+      setWaveHeights(Array(14).fill(6));
     }
   }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Recording timer + waveform animation
+  useEffect(() => {
+    if (!isRecording) {
+      setWaveHeights(Array(14).fill(6));
+      return;
+    }
+    const timer = setInterval(() => setRecordingSecs((s) => s + 1), 1000);
+    const wave = setInterval(() => {
+      setWaveHeights(Array.from({ length: 14 }, () => Math.random() * 14 + 4));
+    }, 120);
+    return () => {
+      clearInterval(timer);
+      clearInterval(wave);
+    };
+  }, [isRecording]);
 
   if (!kind) return null;
 
@@ -279,24 +361,43 @@ export function ActivityFormSheet({
 
   const handleSave = () => {
     const activity: FeedActivity = {
-      id: `form-${Date.now()}`,
+      id: initialActivity?.id ?? `form-${Date.now()}`,
       kind,
       source: "manual",
       actor: "Tal",
       action: config.actionWord,
       noun: config.noun,
-      time: "Just now",
-      title: subject.trim() || `New ${config.noun}`,
+      time: isEditMode ? selectedDate : "Just now",
+      title: title.trim() || config.noun,
       desc: body.trim(),
       contactId: selectedContact?.id,
       contactName: selectedContact?.name,
-      dateGroup: "Today",
+      dateGroup: (initialActivity as FeedActivity | undefined)?.dateGroup ?? "Today",
     };
     onSave(activity);
   };
 
+  const handleDelete = () => {
+    if (initialActivity) {
+      onDelete?.(initialActivity.id);
+      onClose();
+    }
+  };
+
+  const stopRecording = () => {
+    setIsRecording(false);
+    setRecordingSecs(0);
+    setBody((prev) => (prev ? `${prev}\n\n${config.mockTranscription}` : config.mockTranscription));
+  };
+
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+      onShow={() => titleRef.current?.focus()}
+    >
       <ScopedTheme theme="light">
         <KeyboardAvoidingView
           style={styles.overlay}
@@ -308,123 +409,165 @@ export function ActivityFormSheet({
             {/* Drag handle */}
             <View style={styles.handle} />
 
-            {/* Header */}
-            <View style={styles.header}>
-              <View style={styles.headerLeft}>
-                <View
-                  className={`h-7 w-7 rounded-full items-center justify-center ${TONE_SOFT_BG[meta.tone]}`}
-                >
-                  <Icon name={meta.icon} size={14} tone={meta.tone} />
-                </View>
-                <Typography weight="semibold" style={{ fontSize: 16 }}>
-                  {config.label}
-                </Typography>
-              </View>
-              <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={12}>
+            {/* Nav bar */}
+            <View style={styles.nav}>
+              <Pressable onPress={onClose} hitSlop={12} style={styles.navCloseBtn}>
                 <Icon name="close" size="md" tone="muted" />
               </Pressable>
+
+              <View style={styles.navCenter}>
+                <View
+                  style={[
+                    styles.kindIcon,
+                    { backgroundColor: `${TONE_HEX[meta.tone]}18` },
+                  ]}
+                >
+                  <Icon name={meta.icon} size={13} tone={meta.tone} />
+                </View>
+                <Typography style={styles.navTitle}>
+                  {isViewMode ? `${config.label} · Synced` : config.label}
+                </Typography>
+              </View>
+
+              <View style={styles.navRight}>
+                {isEditMode && (
+                  <Pressable onPress={handleDelete} hitSlop={12} style={styles.trashBtn}>
+                    <Icon name="trash" size="md" tone="danger" />
+                  </Pressable>
+                )}
+                {!isViewMode && (
+                  <Pressable onPress={handleSave} hitSlop={12}>
+                    <Typography style={styles.navSaveBtn}>Save</Typography>
+                  </Pressable>
+                )}
+                {isViewMode && (
+                  <View style={styles.syncedBadge}>
+                    <Typography style={styles.syncedText}>View only</Typography>
+                  </View>
+                )}
+              </View>
             </View>
 
-            {/* Form body */}
+            {/* Document title input */}
+            <TextInput
+              ref={titleRef}
+              style={[styles.titleInput, isViewMode && styles.titleInputReadOnly]}
+              placeholder={config.titlePlaceholder}
+              placeholderTextColor="#c0c0c0"
+              value={title}
+              onChangeText={setTitle}
+              returnKeyType="next"
+              autoCapitalize="sentences"
+              autoFocus={!isViewMode}
+              editable={!isViewMode}
+            />
+
+            {/* Property rows */}
+            <View>
+              {/* Date */}
+              <PropRow
+                icon="meeting"
+                label="Date"
+                onPress={isViewMode ? undefined : () => setDatePickerOpen((o) => !o)}
+              >
+                <PropChip label={selectedDate} color="success" />
+              </PropRow>
+
+              {datePickerOpen && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.dateChips}
+                  style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#e4e4e7" }}
+                >
+                  {DATE_OPTIONS.map((opt) => {
+                    const active = opt === selectedDate;
+                    return (
+                      <Pressable
+                        key={opt}
+                        onPress={() => { setSelectedDate(opt); setDatePickerOpen(false); }}
+                        style={[styles.dateChip, active && styles.dateChipActive]}
+                      >
+                        <Typography
+                          style={[styles.dateChipLabel, active && styles.dateChipLabelActive]}
+                        >
+                          {opt}
+                        </Typography>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              )}
+
+              {/* Related to */}
+              <PropRow
+                icon="person"
+                label="Related to"
+                onPress={isViewMode ? undefined : () => !defaultContact && setShowContactPicker(true)}
+              >
+                {selectedContact ? (
+                  <PropChip label={selectedContact.name} />
+                ) : (
+                  <Typography style={propStyles.mutedText}>Add contact...</Typography>
+                )}
+              </PropRow>
+
+              {/* Follow-up */}
+              <PropRow
+                icon="flag"
+                label="Follow-up"
+                onPress={isViewMode ? undefined : () => setFollowUp((f) => !f)}
+              >
+                {followUp ? (
+                  <PropChip label="On" />
+                ) : (
+                  <Typography style={propStyles.mutedText}>Off</Typography>
+                )}
+              </PropRow>
+            </View>
+
+            {/* Body textarea */}
             <ScrollView
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
-              style={{ maxHeight: 380 }}
-              contentContainerStyle={{ flexGrow: 1 }}
+              style={styles.bodyScroll}
             >
-              {/* Subject input */}
-              <TextInput
-                style={styles.subjectInput}
-                placeholder={config.subjectPlaceholder}
-                placeholderTextColor={TONE_HEX.muted}
-                value={subject}
-                onChangeText={setSubject}
-                returnKeyType="next"
-                autoCapitalize="sentences"
-              />
-
-              <View style={styles.divider} />
-
-              {/* Body input */}
               <TextInput
                 style={styles.bodyInput}
                 placeholder={config.bodyPlaceholder}
-                placeholderTextColor={TONE_HEX.muted}
+                placeholderTextColor="#c0c0c0"
                 value={body}
                 onChangeText={setBody}
                 multiline
                 textAlignVertical="top"
                 autoCapitalize="sentences"
+                editable={!isViewMode}
               />
             </ScrollView>
 
-            <View style={styles.divider} />
-
-            {/* Bottom metadata chips row */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.chipsRow}
-            >
-              <MetaChip icon="meeting" label="Today" />
-              <MetaChip icon="person" label="Assigned to you" />
-
-              {/* Contact chip — locked when defaultContact provided, interactive otherwise */}
-              <Pressable
-                onPress={() => !defaultContact && setShowContactPicker(true)}
-                style={[chipStyles.chip, selectedContact ? chipStyles.activeChip : null]}
-              >
-                <Icon name="person" size="sm" tone={selectedContact ? "accent" : "muted"} />
-                <Typography
-                  style={[chipStyles.label, selectedContact ? chipStyles.activeLabel : null]}
-                  numberOfLines={1}
+            {/* Toolbar / recording bar — hidden in view-only mode */}
+            {isViewMode ? null : isRecording ? (
+              <View style={styles.recordingBar}>
+                <View style={styles.recDot} />
+                <Typography style={styles.recTime}>{fmtTime(recordingSecs)}</Typography>
+                <Waveform heights={waveHeights} />
+                <Pressable onPress={stopRecording} hitSlop={8}>
+                  <Typography style={styles.recDone}>Done</Typography>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={styles.toolbar}>
+                <Pressable
+                  onPress={() => { setIsRecording(true); setRecordingSecs(0); }}
+                  style={styles.micBtn}
+                  hitSlop={8}
                 >
-                  {selectedContact ? selectedContact.name : "Add contact"}
-                </Typography>
-                {selectedContact && !defaultContact ? (
-                  <Pressable
-                    hitSlop={8}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      setSelectedContact(null);
-                    }}
-                  >
-                    <Icon name="close" size={12} tone="accent" />
-                  </Pressable>
-                ) : null}
-              </Pressable>
+                  <Icon name="mic" size="md" tone="muted" />
+                </Pressable>
+              </View>
+            )}
 
-              {/* Follow-up chip — toggleable */}
-              <Pressable
-                onPress={() => setFollowUp(!followUp)}
-                style={[chipStyles.chip, followUp ? chipStyles.activeChip : null]}
-              >
-                <Icon name="flag" size="sm" tone={followUp ? "accent" : "muted"} />
-                <Typography
-                  style={[chipStyles.label, followUp ? chipStyles.activeLabel : null]}
-                >
-                  Follow-up
-                </Typography>
-              </Pressable>
-
-              <MetaChip label="Priority" />
-            </ScrollView>
-
-            {/* Footer */}
-            <View style={styles.footer}>
-              <Pressable onPress={onClose} style={styles.cancelBtn}>
-                <Typography style={{ fontWeight: "500", color: TONE_HEX.foreground, fontSize: 15 }}>
-                  Cancel
-                </Typography>
-              </Pressable>
-              <Pressable onPress={handleSave} style={styles.saveBtn}>
-                <Typography style={{ fontWeight: "600", color: "#ffffff", fontSize: 15 }}>
-                  Save
-                </Typography>
-              </Pressable>
-            </View>
-
-            {/* Contact picker overlay — sits on top of the sheet */}
+            {/* Contact picker overlay */}
             {showContactPicker && (
               <ContactPickerOverlay
                 selected={selectedContact}
@@ -456,6 +599,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    minHeight: "82%",
     maxHeight: "92%",
     overflow: "hidden",
   },
@@ -468,78 +612,164 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 4,
   },
-  header: {
+
+  // Nav bar
+  nav: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#e4e4e7",
   },
-  headerLeft: {
+  navCloseBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#f3f3f3",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navCenter: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+  kindIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navTitle: { fontSize: 14, fontWeight: "600", color: TONE_HEX.foreground },
+  navSaveBtn: { fontSize: 14, fontWeight: "600", color: TONE_HEX.accent },
+  navRight: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#f5f5f5",
+  trashBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#fff0f0",
     alignItems: "center",
     justifyContent: "center",
   },
-  subjectInput: {
-    fontSize: 16,
+  syncedBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 99,
+    backgroundColor: "#f5f5f5",
+  },
+  syncedText: {
+    fontSize: 12,
+    color: TONE_HEX.muted,
+    fontWeight: "500",
+  },
+
+  // Title input
+  titleInput: {
+    fontSize: 22,
     fontWeight: "600",
     color: TONE_HEX.foreground,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    lineHeight: 28,
   },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: "#e4e4e7",
+  titleInputReadOnly: {
+    color: TONE_HEX.foreground,
+  },
+
+  // Date chips (inline picker)
+  dateChips: {
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  dateChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 99,
+    backgroundColor: "#f5f5f5",
+    borderWidth: 0.5,
+    borderColor: "#e0e0e0",
+  },
+  dateChipActive: {
+    backgroundColor: "#f0fdf4",
+    borderColor: "#86efac",
+  },
+  dateChipLabel: { fontSize: 13, color: TONE_HEX.foreground },
+  dateChipLabelActive: { color: "#15803d", fontWeight: "500" },
+
+  // Body
+  bodyScroll: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#e4e4e7",
+    flex: 1,
+    minHeight: 120,
   },
   bodyInput: {
-    fontSize: 14,
+    fontSize: 15,
     color: TONE_HEX.foreground,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 14,
-    minHeight: 120,
-    lineHeight: 22,
+    lineHeight: 23,
+    minHeight: 100,
   },
-  chipsRow: {
+
+  // Toolbar
+  toolbar: {
     flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
     alignItems: "center",
-  },
-  footer: {
-    flexDirection: "row",
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingHorizontal: 16,
+    paddingTop: 10,
     paddingBottom: 32,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#e4e4e7",
   },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 13,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "#e4e4e7",
+  micBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#f5f5f5",
     alignItems: "center",
+    justifyContent: "center",
   },
-  saveBtn: {
-    flex: 2,
-    paddingVertical: 13,
-    borderRadius: 12,
-    backgroundColor: TONE_HEX.accent,
+
+  // Recording bar
+  recordingBar: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 32,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#e4e4e7",
+    backgroundColor: "#fff5f5",
+  },
+  recDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#ef4444",
+  },
+  recTime: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#ef4444",
+    minWidth: 34,
+  },
+  recDone: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: TONE_HEX.accent,
   },
 });

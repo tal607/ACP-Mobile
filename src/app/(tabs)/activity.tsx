@@ -1,8 +1,8 @@
-import { Card, Typography } from "heroui-native";
+import { Typography } from "heroui-native";
 import { useMemo, useState, type JSX } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ACTIVITY, TONE_HEX, TONE_SOFT_BG } from "@/theme/tokens";
+import { TONE_HEX } from "@/theme/tokens";
 import {
   FEED_ACTIVITIES,
   type FeedActivity,
@@ -16,105 +16,8 @@ import {
   type ActivityFormKind,
 } from "@/components/ActivityFormSheet";
 import { CreateTaskSheet } from "@/components/CreateTaskSheet";
+import { ActivityCard, FeedDateSep, type Activity } from "@/components/ActivityCard";
 import { Icon } from "@/components/ui/Icon";
-import { InitialsAvatar } from "@/components/ui/InitialsAvatar";
-
-/** "Alex Thompson" → "AT", "Gmail" → "GM" */
-function nameInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) return (parts[0][0]! + parts[parts.length - 1][0]!).toUpperCase();
-  return name.slice(0, 2).toUpperCase();
-}
-
-/* ------------------------------------------------------------------ *
- * Feed activity card — extends ActivityCard with contact row + synced badge
- * ------------------------------------------------------------------ */
-
-function FeedCard({ item }: { item: FeedActivity }): JSX.Element {
-  const meta = ACTIVITY[item.kind];
-
-  return (
-    <View>
-      {/* Contact + synced context row */}
-      {(item.contactName || item.source === "synced") && (
-        <View style={feedStyles.contextRow}>
-          {item.contactName && (
-            <View style={feedStyles.contactPill}>
-              <InitialsAvatar initials={nameInitials(item.contactName)} size="sm" />
-              <Typography type="body-xs" style={{ color: TONE_HEX.muted, marginLeft: 4 }}>
-                {item.contactName}
-              </Typography>
-            </View>
-          )}
-          {item.source === "synced" && (
-            <View style={feedStyles.syncedBadge}>
-              <Typography style={feedStyles.syncedText}>SYNCED</Typography>
-            </View>
-          )}
-        </View>
-      )}
-
-      {/* Activity card body */}
-      <Card className="gap-2 rounded-2xl">
-        {/* Header row: icon + headline + time */}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          <View
-            className={`h-9 w-9 rounded-full items-center justify-center ${TONE_SOFT_BG[meta.tone]}`}
-          >
-            <Icon name={meta.icon} size={17} tone={meta.tone} />
-          </View>
-          <Typography type="body" style={{ flex: 1, fontSize: 13 }}>
-            {item.actor} {item.action}{" "}
-            <Typography type="body" weight="semibold" style={{ fontSize: 13 }}>
-              {item.noun}
-            </Typography>
-          </Typography>
-          <Typography type="body-xs" color="muted">
-            {item.time}
-          </Typography>
-        </View>
-
-        {/* Title + description */}
-        <View style={{ gap: 2 }}>
-          <Typography type="body-sm" weight="semibold">
-            {item.title}
-          </Typography>
-          {item.desc ? (
-            <Typography type="body-sm" color="muted" numberOfLines={2}>
-              {item.desc}
-            </Typography>
-          ) : null}
-        </View>
-      </Card>
-    </View>
-  );
-}
-
-const feedStyles = StyleSheet.create({
-  contextRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 6,
-    marginLeft: 4,
-  },
-  contactPill: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  syncedBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 999,
-    backgroundColor: "#f0f0f0",
-  },
-  syncedText: {
-    fontSize: 9,
-    fontWeight: "700",
-    color: TONE_HEX.muted,
-    letterSpacing: 0.5,
-  },
-});
 
 /* ------------------------------------------------------------------ *
  * Main screen
@@ -123,8 +26,15 @@ const feedStyles = StyleSheet.create({
 export default function ActivityTab(): JSX.Element {
   const [activities, setActivities] = useState<FeedActivity[]>(FEED_ACTIVITIES);
   const [showPicker, setShowPicker] = useState(false);
+
+  // Form sheet state
   const [formKind, setFormKind] = useState<ActivityFormKind | null>(null);
+  const [formInitial, setFormInitial] = useState<Activity | null>(null);
+  const [formReadOnly, setFormReadOnly] = useState(false);
+
+  // Task sheet state
   const [showTask, setShowTask] = useState(false);
+  const [taskInitial, setTaskInitial] = useState<Activity | null>(null);
 
   /** Group activities by dateGroup, preserving insertion order. */
   const sections = useMemo(() => {
@@ -140,16 +50,56 @@ export default function ActivityTab(): JSX.Element {
   const handlePickerSelect = (kind: CreateActivityKind) => {
     setShowPicker(false);
     if (kind === "task") {
+      setTaskInitial(null);
       setShowTask(true);
     } else {
+      setFormInitial(null);
+      setFormReadOnly(false);
       setFormKind(kind as ActivityFormKind);
     }
   };
 
+  const openActivityDetail = (item: FeedActivity) => {
+    if (item.kind === "task") {
+      setTaskInitial(item);
+      setShowTask(true);
+    } else if (item.kind === "synced-meeting") {
+      setFormInitial(item);
+      setFormReadOnly(true);
+      setFormKind("meeting");
+    } else if (item.kind === "synced-email") {
+      setFormInitial(item);
+      setFormReadOnly(true);
+      setFormKind("email");
+    } else {
+      setFormInitial(item);
+      setFormReadOnly(false);
+      setFormKind(item.kind as ActivityFormKind);
+    }
+  };
+
   const handleFormSave = (activity: FeedActivity) => {
-    setActivities((prev) => [activity, ...prev]);
+    const isEdit = activities.some((a) => a.id === activity.id);
+    if (isEdit) {
+      setActivities((prev) =>
+        prev.map((a) => (a.id === activity.id ? { ...a, ...activity } : a))
+      );
+    } else {
+      setActivities((prev) => [activity, ...prev]);
+    }
     setFormKind(null);
+    setFormInitial(null);
+    setFormReadOnly(false);
     setShowTask(false);
+    setTaskInitial(null);
+  };
+
+  const handleDelete = (id: string) => {
+    setActivities((prev) => prev.filter((a) => a.id !== id));
+    setFormKind(null);
+    setFormInitial(null);
+    setShowTask(false);
+    setTaskInitial(null);
   };
 
   return (
@@ -171,22 +121,24 @@ export default function ActivityTab(): JSX.Element {
       >
         {sections.map(({ date, items }) => (
           <View key={date} style={screenStyles.section}>
-            {/* Date section header */}
-            <Typography style={screenStyles.sectionLabel}>
-              {date}
-            </Typography>
-
-            {/* Activity cards */}
-            <View style={screenStyles.cardStack}>
+            <FeedDateSep label={date} />
+            <View style={{ position: "relative" }}>
+              <View style={screenStyles.spine} />
               {items.map((item) => (
-                <FeedCard key={item.id} item={item} />
+                <ActivityCard
+                  key={item.id}
+                  item={item}
+                  contactName={item.contactName}
+                  source={item.source}
+                  onPress={() => openActivityDetail(item)}
+                />
               ))}
             </View>
           </View>
         ))}
       </ScrollView>
 
-      {/* FAB — floats above the tab bar */}
+      {/* FAB */}
       <Pressable
         onPress={() => setShowPicker(true)}
         style={screenStyles.fab}
@@ -203,13 +155,18 @@ export default function ActivityTab(): JSX.Element {
       <ActivityFormSheet
         kind={formKind}
         visible={formKind !== null}
-        onClose={() => setFormKind(null)}
+        onClose={() => { setFormKind(null); setFormInitial(null); setFormReadOnly(false); }}
         onSave={handleFormSave}
+        onDelete={handleDelete}
+        initialActivity={formInitial ?? undefined}
+        readOnly={formReadOnly}
       />
       <CreateTaskSheet
         visible={showTask}
-        onClose={() => setShowTask(false)}
+        onClose={() => { setShowTask(false); setTaskInitial(null); }}
         onSave={handleFormSave}
+        onDelete={handleDelete}
+        initialActivity={taskInitial ?? undefined}
       />
     </SafeAreaView>
   );
@@ -239,22 +196,18 @@ const screenStyles = StyleSheet.create({
   feedContent: {
     paddingHorizontal: 16,
     paddingTop: 4,
-    paddingBottom: 100, // room for FAB
+    paddingBottom: 100,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: TONE_HEX.muted,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    marginBottom: 12,
-    marginLeft: 4,
-  },
-  cardStack: {
-    gap: 10,
+  spine: {
+    position: "absolute",
+    left: 11,
+    top: 10,
+    bottom: 10,
+    width: 1,
+    backgroundColor: "#ebebeb",
   },
   fab: {
     position: "absolute",

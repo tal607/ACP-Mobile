@@ -97,6 +97,8 @@ export const ICONS = {
   task: "checkmark-circle-outline",
   attach: "attach-outline",
   flag: "flag-outline",
+  mic: "mic-outline",
+  time: "time-outline",
 } satisfies Record<string, IconSpec>;
 
 export type IconName = keyof typeof ICONS;
