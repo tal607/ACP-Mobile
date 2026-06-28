@@ -84,6 +84,14 @@ export const ICONS = {
   activity: "pulse-outline",
   // AI Co-pilot — slim filled 4-point sparkle (Ionicons' filled sparkle is too chunky).
   copilot: { lib: "mci", name: "star-four-points" },
+  // contact actions / details
+  trash: "trash-outline",
+  portal: "eye-outline",
+  lockOpen: "lock-open-outline",
+  shield: "shield-checkmark-outline",
+  apps: "apps-outline",
+  edit: "create-outline",
+  addTag: "pricetag-outline",
 } satisfies Record<string, IconSpec>;
 
 export type IconName = keyof typeof ICONS;

@@ -63,6 +63,15 @@ export type ContactData = {
   classification?: string;
   /** Country of residence (e.g. "United States"). */
   country?: string;
+  // More Details fields
+  title?: string;
+  preferredName?: string;
+  jobTitle?: string;
+  residency?: string;
+  passportId?: string;
+  taxId?: string;
+  dateOfBirth?: string;
+  contactNotes?: string;
 };
 
 /* ------------------------------------------------------------------ *

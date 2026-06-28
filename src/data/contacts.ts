@@ -55,12 +55,19 @@ export type ContactNextMeeting = {
   type: string;
 };
 
+export type RelatedContact = {
+  id: string;
+  name: string;
+  note?: string;
+};
+
 export type ContactDetailData = ContactData & {
   location?: string;
   website?: string;
   nextMeeting?: ContactNextMeeting;
   activity?: Activity[];
   positions?: Position[];
+  relatedContacts?: RelatedContact[];
 };
 
 /* ------------------------------------------------------------------ *
@@ -103,6 +110,18 @@ export const CONTACTS: ContactDetailData[] = [
     leadSource: "Referral",
     classification: "Individual",
     country: "United States",
+    title: "Mr.",
+    preferredName: "Al",
+    jobTitle: "Managing Partner",
+    residency: "US Citizen",
+    passportId: "US-A12345678",
+    taxId: "XXX-XX-1234",
+    dateOfBirth: "Jan 15, 1975",
+    contactNotes: "Prefers calls on Tuesday mornings.",
+    relatedContacts: [
+      { id: "rc-at-1", name: "Margaret Thompson", note: "Spouse" },
+      { id: "rc-at-2", name: "Pinnacle Capital LLC", note: "Entity account" },
+    ],
     activity: [
       {
         id: "at-a1",
@@ -557,6 +576,10 @@ export const CONTACTS: ContactDetailData[] = [
     leadSource: "Referral",
     classification: "Individual",
     country: "United States",
+    jobTitle: "Principal",
+    relatedContacts: [
+      { id: "rc-sk-1", name: "James Chen", note: "CC'd to personal emails" },
+    ],
     activity: [
       {
         id: "sk-a1",

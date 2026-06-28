@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   type ContactData,
+  CreateContactSheet,
   type FilterState,
   countActiveFilters,
   EMPTY_FILTERS,
@@ -99,6 +100,7 @@ function RowSep(): JSX.Element {
 export default function ContactsTab(): JSX.Element {
   const [searchOpen, setSearchOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
 
   const organizations = useMemo(
@@ -120,6 +122,7 @@ export default function ContactsTab(): JSX.Element {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background">
+      <CreateContactSheet visible={createOpen} onClose={() => setCreateOpen(false)} />
       <SearchOverlay visible={searchOpen} onClose={() => setSearchOpen(false)} />
       <FilterSheet
         visible={filterOpen}
@@ -180,7 +183,7 @@ export default function ContactsTab(): JSX.Element {
         keyExtractor={(c) => c.id}
         showsVerticalScrollIndicator={false}
         ItemSeparatorComponent={RowSep}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
         renderItem={({ item }) => <ContactRow contact={item} onPress={() => open(item.id)} />}
         ListEmptyComponent={
           <View style={{ alignItems: "center", justifyContent: "center", gap: 8, paddingTop: 80 }}>
@@ -191,6 +194,29 @@ export default function ContactsTab(): JSX.Element {
           </View>
         }
       />
+
+      {/* Floating action button */}
+      <Pressable
+        onPress={() => setCreateOpen(true)}
+        style={{
+          position: "absolute",
+          bottom: 100,
+          right: 20,
+          height: 56,
+          width: 56,
+          borderRadius: 28,
+          backgroundColor: "#2f54eb",
+          alignItems: "center",
+          justifyContent: "center",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.18,
+          shadowRadius: 8,
+          elevation: 6,
+        }}
+      >
+        <Icon name="addContact" size="md" color="#ffffff" />
+      </Pressable>
     </SafeAreaView>
   );
 }

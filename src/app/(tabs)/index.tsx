@@ -5,6 +5,7 @@ import {
   ActionItemRow,
   type Activity,
   ActivityCard,
+  CreateContactSheet,
   Icon,
   InitialsAvatar,
   type Meeting,
@@ -211,6 +212,8 @@ export default function HomeTab(): JSX.Element {
   const [prepData, setPrepData] = useState<PrepData | null>(null);
   // Multi-contact prep sheet state
   const [multiPrepData, setMultiPrepData] = useState<MultiPrepData | null>(null);
+  // Create contact sheet state
+  const [createContactOpen, setCreateContactOpen] = useState(false);
 
   const m = NEXT_MEETING;
 
@@ -222,7 +225,11 @@ export default function HomeTab(): JSX.Element {
 
   return (
     <Screen>
-      {/* Prep sheets — rendered outside the scroll tree */}
+      {/* Sheets — rendered outside the scroll tree */}
+      <CreateContactSheet
+        visible={createContactOpen}
+        onClose={() => setCreateContactOpen(false)}
+      />
       <PrepSheet data={prepData} onClose={() => setPrepData(null)} />
       <MultiPrepSheet
         data={multiPrepData}
@@ -261,7 +268,11 @@ export default function HomeTab(): JSX.Element {
         contentContainerStyle={{ gap: 8 }}
       >
         {QUICK_ACTIONS.map((a) => (
-          <PillButton key={a.key} icon={a.icon}>
+          <PillButton
+            key={a.key}
+            icon={a.icon}
+            onPress={a.key === "add" ? () => setCreateContactOpen(true) : undefined}
+          >
             {a.label}
           </PillButton>
         ))}

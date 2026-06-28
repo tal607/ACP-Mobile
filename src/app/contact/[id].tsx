@@ -1,9 +1,9 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { Card, Chip, Separator, Surface, Typography } from "heroui-native";
-import { useEffect, useState, type JSX } from "react";
-import { Linking, Pressable, ScrollView, Share, View } from "react-native";
+import { Chip, Separator, Surface, Typography } from "heroui-native";
+import { Fragment, useEffect, useState, type JSX } from "react";
+import { Linking, Pressable, ScrollView, Share, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ActivityCard, Icon, Tag } from "@/components";
+import { ActivityCard, CollapseCard, ContactActionSheet, Icon, Tag } from "@/components";
 import { recordRecent } from "@/data/recents";
 import { CONTACTS, type ContactDetailData, type Position } from "@/data/contacts";
 import { TONE_HEX, type IconName } from "@/theme/tokens";
@@ -69,7 +69,7 @@ function ActionButton({
   );
 }
 
-/** Tappable info row (email, phone, org, location). */
+/** Tappable info row (email, phone, location). */
 function InfoRow({
   icon,
   label,
@@ -108,10 +108,70 @@ function InfoRow({
   );
 }
 
+/** Non-interactive row — same visual as InfoRow but no tap, no chevron, no accent. */
+function StaticInfoRow({
+  icon,
+  label,
+  showSeparator,
+}: {
+  icon: IconName;
+  label: string;
+  showSeparator?: boolean;
+}): JSX.Element {
+  return (
+    <>
+      {showSeparator && <Separator />}
+      <View className="flex-row items-center px-4 py-3 gap-3">
+        <View
+          className="h-8 w-8 rounded-full items-center justify-center"
+          style={{ backgroundColor: "#f5f5f5" }}
+        >
+          <Icon name={icon} size="sm" tone="muted" />
+        </View>
+        <Typography type="body-sm" className="flex-1" numberOfLines={1}>
+          {label}
+        </Typography>
+      </View>
+    </>
+  );
+}
+
 /** Details tab content. */
 function DetailsTab({ contact }: { contact: ContactDetailData }): JSX.Element {
+  const [localTags, setLocalTags] = useState<string[]>(contact.tags ?? []);
+  const [addingTag, setAddingTag] = useState(false);
+  const [newTag, setNewTag] = useState("");
+
   const hasContactInfo =
-    contact.email || contact.phone || contact.website || contact.location;
+    contact.email || contact.phone || contact.location;
+
+  const moreDetails = [
+    { label: "Title", value: contact.title },
+    { label: "Organization", value: contact.company },
+    { label: "Classification", value: contact.classification },
+    { label: "Residency", value: contact.residency },
+    { label: "ID / Passport", value: contact.passportId },
+    { label: "Tax ID", value: contact.taxId },
+    { label: "Date of Birth", value: contact.dateOfBirth },
+    { label: "Staff Member", value: contact.assignedTo },
+    { label: "Preferred Name", value: contact.preferredName },
+    { label: "Job Title", value: contact.jobTitle },
+    { label: "Lead Source", value: contact.leadSource },
+    { label: "Country", value: contact.country },
+    { label: "Notes", value: contact.contactNotes },
+  ].filter((d): d is { label: string; value: string } => !!d.value);
+
+  const removeTag = (tag: string) =>
+    setLocalTags((prev) => prev.filter((t) => t !== tag));
+
+  const confirmAddTag = () => {
+    const trimmed = newTag.trim();
+    if (trimmed && !localTags.includes(trimmed)) {
+      setLocalTags((prev) => [...prev, trimmed]);
+    }
+    setNewTag("");
+    setAddingTag(false);
+  };
 
   return (
     <View className="gap-6">
@@ -150,52 +210,87 @@ function DetailsTab({ contact }: { contact: ContactDetailData }): JSX.Element {
                 showSeparator={!!contact.email}
               />
             )}
-            {contact.website && (
-              <InfoRow
-                icon="org"
-                label={contact.company}
-                onPress={() => Linking.openURL(contact.website!)}
-                showSeparator={!!(contact.email || contact.phone)}
-              />
-            )}
             {contact.location && (
               <InfoRow
                 icon="location"
                 label={contact.location}
                 onPress={() =>
                   Linking.openURL(
-                    `https://maps.google.com/?q=${encodeURIComponent(contact.location!)}`
+                    `https://maps.google.com/?q=${encodeURIComponent(
+                      contact.location!
+                    )}`
                   )
                 }
-                showSeparator={!!(contact.email || contact.phone || contact.website)}
+                showSeparator={!!(contact.email || contact.phone)}
               />
             )}
           </Surface>
         </View>
       )}
 
-      {/* Next meeting */}
-      {contact.nextMeeting && (
-        <View className="gap-2">
-          <Typography className="text-xs" weight="semibold">
-            Next Meeting
-          </Typography>
-          <Card className="gap-2 rounded-2xl">
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center gap-2">
-                <Icon name="calendar" size="sm" tone="accent" />
-                <Typography type="body-sm" weight="semibold">
-                  {contact.nextMeeting.type}
-                </Typography>
-              </View>
+      {/* Tags */}
+      <View className="gap-2">
+        <Typography className="text-xs" weight="semibold">
+          Tags
+        </Typography>
+        <View className="flex-row flex-wrap gap-2 items-center">
+          {localTags.map((tag) => (
+            <View
+              key={tag}
+              className="flex-row items-center gap-1.5 bg-surface border border-border rounded-full px-3 py-1.5"
+            >
+              <Typography style={{ fontSize: 13 }}>{tag}</Typography>
+              <Pressable onPress={() => removeTag(tag)} hitSlop={8}>
+                <Icon name="close" size={12} tone="muted" />
+              </Pressable>
             </View>
-            <Typography type="body-sm" color="muted">
-              {contact.nextMeeting.date} · {contact.nextMeeting.time} ·{" "}
-              {contact.nextMeeting.duration}
-            </Typography>
-          </Card>
+          ))}
+          {!addingTag ? (
+            <Pressable
+              onPress={() => setAddingTag(true)}
+              className="flex-row items-center gap-1.5 rounded-full px-3 py-1.5"
+              style={{ borderWidth: 1, borderStyle: "dashed", borderColor: "#d9d9d9" }}
+            >
+              <Icon name="addTag" size={12} tone="muted" />
+              <Typography type="body-xs" color="muted">
+                Add tag
+              </Typography>
+            </Pressable>
+          ) : (
+            <View
+              className="flex-row items-center gap-2 rounded-full px-3 py-1"
+              style={{ borderWidth: 1, borderColor: TONE_HEX.accent }}
+            >
+              <TextInput
+                value={newTag}
+                onChangeText={setNewTag}
+                placeholder="Tag name"
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={confirmAddTag}
+                style={{
+                  fontSize: 13,
+                  minWidth: 80,
+                  color: TONE_HEX.foreground,
+                  padding: 0,
+                }}
+              />
+              <Pressable onPress={confirmAddTag} hitSlop={8}>
+                <Icon name="check" size={14} tone="accent" />
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setAddingTag(false);
+                  setNewTag("");
+                }}
+                hitSlop={8}
+              >
+                <Icon name="close" size={14} tone="muted" />
+              </Pressable>
+            </View>
+          )}
         </View>
-      )}
+      </View>
 
       {/* Status snapshot */}
       {contact.status && (
@@ -246,6 +341,73 @@ function DetailsTab({ contact }: { contact: ContactDetailData }): JSX.Element {
             )}
           </Surface>
         </View>
+      )}
+
+      {/* More Details */}
+      {moreDetails.length > 0 && (
+        <CollapseCard title="More Details" badge={moreDetails.length}>
+          {moreDetails.map((d) => (
+            <Fragment key={d.label}>
+              <Separator />
+              <View className="flex-row items-start justify-between px-4 py-3 gap-4">
+                <Typography type="body-sm" color="muted">
+                  {d.label}
+                </Typography>
+                <Typography
+                  type="body-sm"
+                  style={{ textAlign: "right", flexShrink: 1 }}
+                >
+                  {d.value}
+                </Typography>
+              </View>
+            </Fragment>
+          ))}
+        </CollapseCard>
+      )}
+
+      {/* Related Contacts */}
+      {contact.relatedContacts && contact.relatedContacts.length > 0 && (
+        <CollapseCard
+          title="Related Contacts"
+          badge={contact.relatedContacts.length}
+        >
+          {contact.relatedContacts.map((rc) => (
+            <Fragment key={rc.id}>
+              <Separator />
+              <View className="flex-row items-center px-4 py-3 gap-2">
+                <View className="flex-1 gap-0.5">
+                  <Typography type="body-sm" weight="semibold">
+                    {rc.name}
+                  </Typography>
+                  {rc.note && (
+                    <Typography type="body-xs" color="muted">
+                      {rc.note}
+                    </Typography>
+                  )}
+                </View>
+                <Pressable
+                  className="h-8 w-8 items-center justify-center rounded-full"
+                  style={{ backgroundColor: "#f5f5f5" }}
+                >
+                  <Icon name="edit" size="sm" tone="muted" />
+                </Pressable>
+                <Pressable
+                  className="h-8 w-8 items-center justify-center rounded-full"
+                  style={{ backgroundColor: "#fff0f0" }}
+                >
+                  <Icon name="trash" size="sm" tone="danger" />
+                </Pressable>
+              </View>
+            </Fragment>
+          ))}
+          <Separator />
+          <Pressable className="flex-row items-center px-4 py-3.5 gap-2 active:bg-surface-secondary">
+            <Icon name="addContact" size="sm" tone="accent" />
+            <Typography type="body-sm" style={{ color: TONE_HEX.accent }}>
+              Add Related Contact
+            </Typography>
+          </Pressable>
+        </CollapseCard>
       )}
     </View>
   );
@@ -319,7 +481,11 @@ function PositionCard({
       {/* Header: fund name + status */}
       <View className="px-4 pt-4 pb-3 gap-1">
         <View className="flex-row items-start justify-between gap-2">
-          <Typography weight="semibold" className="text-base flex-1" numberOfLines={2}>
+          <Typography
+            weight="semibold"
+            className="text-base flex-1"
+            numberOfLines={2}
+          >
             {position.fundName}
           </Typography>
           <Chip
@@ -340,27 +506,43 @@ function PositionCard({
 
       <Separator />
 
-      {/* 2×2 metrics */}
+      {/* 2x2 metrics */}
       <View className="px-4 py-3 gap-3">
         <View className="flex-row gap-4">
           <View className="flex-1 gap-0.5">
-            <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>COMMITTED</Typography>
-            <Typography weight="semibold" className="text-sm">{fmtShort(position.commitment)}</Typography>
+            <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>
+              COMMITTED
+            </Typography>
+            <Typography weight="semibold" className="text-sm">
+              {fmtShort(position.commitment)}
+            </Typography>
           </View>
           <View className="flex-1 gap-0.5">
-            <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>CONTRIBUTED</Typography>
-            <Typography weight="semibold" className="text-sm">{fmtShort(position.contribution)}</Typography>
+            <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>
+              CONTRIBUTED
+            </Typography>
+            <Typography weight="semibold" className="text-sm">
+              {fmtShort(position.contribution)}
+            </Typography>
           </View>
         </View>
         <View className="flex-row gap-4">
           <View className="flex-1 gap-0.5">
-            <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>DISTRIBUTIONS</Typography>
-            <Typography weight="semibold" className="text-sm" style={{ color: TONE_HEX.success }}>
+            <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>
+              DISTRIBUTIONS
+            </Typography>
+            <Typography
+              weight="semibold"
+              className="text-sm"
+              style={{ color: TONE_HEX.success }}
+            >
               {fmtShort(position.distributions)}
             </Typography>
           </View>
           <View className="flex-1 gap-0.5">
-            <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>OWNERSHIP</Typography>
+            <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>
+              OWNERSHIP
+            </Typography>
             <Typography weight="semibold" className="text-sm">
               {(position.ownership * 100).toFixed(1)}%
             </Typography>
@@ -368,8 +550,14 @@ function PositionCard({
         </View>
         {unfunded > 0 && (
           <View className="flex-row items-center gap-1.5">
-            <View className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: TONE_HEX.warning }} />
-            <Typography type="body-xs" style={{ color: TONE_HEX.warning, fontSize: 11 }}>
+            <View
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: TONE_HEX.warning }}
+            />
+            <Typography
+              type="body-xs"
+              style={{ color: TONE_HEX.warning, fontSize: 11 }}
+            >
               {fmtShort(unfunded)} unfunded
             </Typography>
           </View>
@@ -389,7 +577,8 @@ function PositionCard({
         }
       >
         <Typography type="body-sm" style={{ color: TONE_HEX.accent }}>
-          {position.transactions.length} Transaction{position.transactions.length !== 1 ? "s" : ""}
+          {position.transactions.length} Transaction
+          {position.transactions.length !== 1 ? "s" : ""}
         </Typography>
         <Icon name="chevron" size="sm" tone="accent" />
       </Pressable>
@@ -397,30 +586,52 @@ function PositionCard({
   );
 }
 
-function InvestmentsTab({ contact }: { contact: ContactDetailData }): JSX.Element {
+function InvestmentsTab({
+  contact,
+}: {
+  contact: ContactDetailData;
+}): JSX.Element {
   if (!contact.positions || contact.positions.length === 0) {
     return (
       <View className="items-center justify-center py-16 gap-2">
         <Icon name="note" size="lg" tone="muted" />
-        <Typography type="body-sm" color="muted">No investments yet</Typography>
+        <Typography type="body-sm" color="muted">
+          No investments yet
+        </Typography>
       </View>
     );
   }
 
-  const totalCommitted = contact.positions.reduce((sum, p) => sum + p.commitment, 0);
-  const totalDistributions = contact.positions.reduce((sum, p) => sum + p.distributions, 0);
+  const totalCommitted = contact.positions.reduce(
+    (sum, p) => sum + p.commitment,
+    0
+  );
+  const totalDistributions = contact.positions.reduce(
+    (sum, p) => sum + p.distributions,
+    0
+  );
 
   return (
     <View className="gap-4">
       {/* Summary header */}
       <View className="flex-row gap-3">
         <Surface className="flex-1 gap-1 rounded-2xl">
-          <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>TOTAL COMMITTED</Typography>
-          <Typography weight="bold" className="text-lg">{fmtShort(totalCommitted)}</Typography>
+          <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>
+            TOTAL COMMITTED
+          </Typography>
+          <Typography weight="bold" className="text-lg">
+            {fmtShort(totalCommitted)}
+          </Typography>
         </Surface>
         <Surface className="flex-1 gap-1 rounded-2xl">
-          <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>DISTRIBUTIONS</Typography>
-          <Typography weight="bold" className="text-lg" style={{ color: TONE_HEX.success }}>
+          <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>
+            DISTRIBUTIONS
+          </Typography>
+          <Typography
+            weight="bold"
+            className="text-lg"
+            style={{ color: TONE_HEX.success }}
+          >
             {fmtShort(totalDistributions)}
           </Typography>
         </Surface>
@@ -448,6 +659,7 @@ export default function ContactPage(): JSX.Element {
   const contact = CONTACTS.find((c) => c.id === id);
   const [activeTab, setActiveTab] = useState<TabId>("details");
   const [isFavorite, setIsFavorite] = useState(false);
+  const [actionSheetOpen, setActionSheetOpen] = useState(false);
 
   // Record this contact as recently viewed
   useEffect(() => {
@@ -457,11 +669,20 @@ export default function ContactPage(): JSX.Element {
   /* Not-found fallback */
   if (!contact) {
     return (
-      <SafeAreaView edges={["top"]} className="flex-1 bg-background items-center justify-center gap-3">
+      <SafeAreaView
+        edges={["top"]}
+        className="flex-1 bg-background items-center justify-center gap-3"
+      >
         <Typography type="body-sm" color="muted">
           Contact not found
         </Typography>
-        <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/contacts")}>
+        <Pressable
+          onPress={() =>
+            router.canGoBack()
+              ? router.back()
+              : router.replace("/(tabs)/contacts")
+          }
+        >
           <Typography type="body-sm" style={{ color: TONE_HEX.accent }}>
             Go back
           </Typography>
@@ -472,11 +693,22 @@ export default function ContactPage(): JSX.Element {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background">
+      {/* Action sheet — rendered as a modal, lives outside the scroll tree */}
+      <ContactActionSheet
+        visible={actionSheetOpen}
+        onClose={() => setActionSheetOpen(false)}
+        email={contact.email}
+      />
+
       {/* ── Fixed nav bar ────────────────────────────────────────── */}
       <View className="flex-row items-center px-4 py-2 gap-2">
         {/* Back */}
         <Pressable
-          onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/contacts")}
+          onPress={() =>
+            router.canGoBack()
+              ? router.back()
+              : router.replace("/(tabs)/contacts")
+          }
           className="h-9 w-9 items-center justify-center rounded-full"
           style={{ backgroundColor: "#f0f0f0" }}
         >
@@ -484,7 +716,11 @@ export default function ContactPage(): JSX.Element {
         </Pressable>
 
         {/* Title */}
-        <Typography weight="semibold" className="text-base flex-1 text-center" numberOfLines={1}>
+        <Typography
+          weight="semibold"
+          className="text-base flex-1 text-center"
+          numberOfLines={1}
+        >
           {contact.name}
         </Typography>
 
@@ -526,6 +762,7 @@ export default function ContactPage(): JSX.Element {
 
           {/* More options */}
           <Pressable
+            onPress={() => setActionSheetOpen(true)}
             className="h-9 w-9 items-center justify-center rounded-full"
             style={{ backgroundColor: "#f0f0f0" }}
           >
@@ -590,14 +827,19 @@ export default function ContactPage(): JSX.Element {
             <ActionButton
               icon="sendInvite"
               label="Data Room"
-              onPress={() => contact.dataRoomUrl && Linking.openURL(contact.dataRoomUrl)}
+              onPress={() =>
+                contact.dataRoomUrl && Linking.openURL(contact.dataRoomUrl)
+              }
               disabled={!contact.dataRoomUrl}
             />
           </View>
         </View>
 
         {/* [1] Tab bar — STICKY */}
-        <View className="bg-background" style={{ borderBottomWidth: 1, borderBottomColor: "#e4e4e7" }}>
+        <View
+          className="bg-background"
+          style={{ borderBottomWidth: 1, borderBottomColor: "#e4e4e7" }}
+        >
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
