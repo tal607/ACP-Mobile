@@ -92,6 +92,11 @@ export const ICONS = {
   apps: "apps-outline",
   edit: "create-outline",
   addTag: "pricetag-outline",
+  // create / activity actions
+  add: "add",
+  task: "checkmark-circle-outline",
+  attach: "attach-outline",
+  flag: "flag-outline",
 } satisfies Record<string, IconSpec>;
 
 export type IconName = keyof typeof ICONS;
@@ -115,17 +120,22 @@ export function tagColor(tag: string): "success" | "accent" | "warning" | "defau
 }
 
 /** Activity kind → icon + tone (drives the colored icon circle). */
-export const ACTIVITY: Record<string, { icon: IconName; tone: Extract<Tone, "danger" | "success" | "accent"> }> = {
+export const ACTIVITY: Record<string, { icon: IconName; tone: Extract<Tone, "danger" | "success" | "accent" | "warning"> }> = {
   note: { icon: "note", tone: "danger" },
   meeting: { icon: "meeting", tone: "success" },
-  call: { icon: "call", tone: "accent" },
+  call: { icon: "call", tone: "warning" },
+  email: { icon: "email", tone: "accent" },
+  task: { icon: "task", tone: "accent" },
+  "synced-meeting": { icon: "meeting", tone: "success" },
+  "synced-email": { icon: "email", tone: "accent" },
 };
 
 export type ActivityKind = keyof typeof ACTIVITY;
 
 /** Soft background class per tone (for icon circles / chips). */
-export const TONE_SOFT_BG: Record<"danger" | "success" | "accent", string> = {
+export const TONE_SOFT_BG: Record<"danger" | "success" | "accent" | "warning", string> = {
   danger: "bg-danger-soft",
   success: "bg-success-soft",
   accent: "bg-accent-soft",
+  warning: "bg-warning-soft",
 };

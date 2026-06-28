@@ -33,3 +33,6 @@ export {
 export { CollapseCard } from "./CollapseCard";
 export { ContactActionSheet } from "./ContactActionSheet";
 export { CreateContactSheet } from "./CreateContactSheet";
+export { CreateActivitySheet, type CreateActivityKind } from "./CreateActivitySheet";
+export { ActivityFormSheet, type ActivityFormKind } from "./ActivityFormSheet";
+export { CreateTaskSheet } from "./CreateTaskSheet";

@@ -1,9 +1,22 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { Chip, Separator, Surface, Typography } from "heroui-native";
 import { Fragment, useEffect, useState, type JSX } from "react";
-import { Linking, Pressable, ScrollView, Share, TextInput, View } from "react-native";
+import { Linking, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ActivityCard, CollapseCard, ContactActionSheet, Icon, Tag } from "@/components";
+import {
+  ActivityCard,
+  CollapseCard,
+  ContactActionSheet,
+  Icon,
+  Tag,
+  type Activity,
+  CreateActivitySheet,
+  type CreateActivityKind,
+  ActivityFormSheet,
+  type ActivityFormKind,
+  CreateTaskSheet,
+} from "@/components";
+import type { FeedActivity } from "@/data/activities";
 import { recordRecent } from "@/data/recents";
 import { CONTACTS, type ContactDetailData, type Position } from "@/data/contacts";
 import { TONE_HEX, type IconName } from "@/theme/tokens";
@@ -21,6 +34,25 @@ const TABS = [
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
+
+const pageStyles = StyleSheet.create({
+  fab: {
+    position: "absolute",
+    bottom: 24,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: TONE_HEX.accent,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+});
 
 const DATA_ROOM_LABEL = {
   not_sent: "Not sent",
@@ -414,13 +446,16 @@ function DetailsTab({ contact }: { contact: ContactDetailData }): JSX.Element {
 }
 
 /** Activity tab content. */
-function ActivityTab({ contact }: { contact: ContactDetailData }): JSX.Element {
-  if (!contact.activity || contact.activity.length === 0) {
+function ActivityTab({ activities }: { activities: Activity[] }): JSX.Element {
+  if (activities.length === 0) {
     return (
       <View className="items-center justify-center py-16 gap-2">
         <Icon name="activity" size="lg" tone="muted" />
         <Typography type="body-sm" color="muted">
           No activity yet
+        </Typography>
+        <Typography type="body-xs" color="muted">
+          Tap + to log an activity
         </Typography>
       </View>
     );
@@ -430,7 +465,7 @@ function ActivityTab({ contact }: { contact: ContactDetailData }): JSX.Element {
       <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>
         Recent
       </Typography>
-      {contact.activity.map((item) => (
+      {activities.map((item) => (
         <ActivityCard key={item.id} item={item} />
       ))}
     </View>
@@ -661,10 +696,31 @@ export default function ContactPage(): JSX.Element {
   const [isFavorite, setIsFavorite] = useState(false);
   const [actionSheetOpen, setActionSheetOpen] = useState(false);
 
+  // Activity creation state
+  const [localActivities, setLocalActivities] = useState<Activity[]>(() => contact?.activity ?? []);
+  const [showActivityPicker, setShowActivityPicker] = useState(false);
+  const [activityFormKind, setActivityFormKind] = useState<ActivityFormKind | null>(null);
+  const [showActivityTask, setShowActivityTask] = useState(false);
+
   // Record this contact as recently viewed
   useEffect(() => {
     if (id) recordRecent(id);
   }, [id]);
+
+  const handleActivityPickerSelect = (kind: CreateActivityKind) => {
+    setShowActivityPicker(false);
+    if (kind === "task") {
+      setShowActivityTask(true);
+    } else {
+      setActivityFormKind(kind as ActivityFormKind);
+    }
+  };
+
+  const handleActivitySave = (feedActivity: FeedActivity) => {
+    setLocalActivities((prev) => [feedActivity as Activity, ...prev]);
+    setActivityFormKind(null);
+    setShowActivityTask(false);
+  };
 
   /* Not-found fallback */
   if (!contact) {
@@ -875,14 +931,44 @@ export default function ContactPage(): JSX.Element {
         </View>
 
         {/* [2] Tab content */}
-        <View className="px-5 pt-5">
+        <View className="px-5 pt-5" style={{ paddingBottom: activeTab === "activity" ? 100 : 0 }}>
           {activeTab === "details" && <DetailsTab contact={contact} />}
-          {activeTab === "activity" && <ActivityTab contact={contact} />}
+          {activeTab === "activity" && <ActivityTab activities={localActivities} />}
           {activeTab === "investments" && <InvestmentsTab contact={contact} />}
           {activeTab === "offerings" && <PlaceholderTab label="Offerings" />}
           {activeTab === "documents" && <PlaceholderTab label="Documents" />}
         </View>
       </ScrollView>
+
+      {/* FAB — only on activity tab */}
+      {activeTab === "activity" && (
+        <Pressable
+          onPress={() => setShowActivityPicker(true)}
+          style={pageStyles.fab}
+        >
+          <Icon name="add" size={28} color="#ffffff" />
+        </Pressable>
+      )}
+
+      {/* Activity creation sheets */}
+      <CreateActivitySheet
+        visible={showActivityPicker}
+        onClose={() => setShowActivityPicker(false)}
+        onSelect={handleActivityPickerSelect}
+      />
+      <ActivityFormSheet
+        kind={activityFormKind}
+        visible={activityFormKind !== null}
+        onClose={() => setActivityFormKind(null)}
+        onSave={handleActivitySave}
+        defaultContact={contact}
+      />
+      <CreateTaskSheet
+        visible={showActivityTask}
+        onClose={() => setShowActivityTask(false)}
+        onSave={handleActivitySave}
+        defaultContact={contact}
+      />
     </SafeAreaView>
   );
 }
