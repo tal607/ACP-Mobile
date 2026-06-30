@@ -13,8 +13,49 @@ export type SubscriptionStage =
   | "Hasn't Started"
   | "Started"
   | "Counter Sign"
+  | "Waitlist"
   | "Completed"
   | "Signed";
+
+/* ------------------------------------------------------------------ *
+ * Prospect — a contact's subscription record inside an offering
+ * ------------------------------------------------------------------ */
+
+export type Prospect = {
+  id: string;
+  offeringId: string;
+  name: string;
+  stage: SubscriptionStage;
+  subscriptionStep: string;
+  daysInStage: number;
+  subscriptionAmount?: number;
+  softCommitment?: number;
+  organization?: string;
+  staffMember?: string;
+  dataRoomAccess: boolean;
+};
+
+/* ------------------------------------------------------------------ *
+ * Stage configuration — color + label for the kanban
+ * ------------------------------------------------------------------ */
+
+export const STAGE_CONFIG: Record<SubscriptionStage, { color: string; label: string }> = {
+  "Hasn't Started": { color: "#8C8C8C", label: "Hasn't Started" },
+  "Started":        { color: "#531DAB", label: "Started" },
+  "Counter Sign":   { color: "#0958D9", label: "Counter Sign" },
+  "Waitlist":       { color: "#D46B08", label: "Waitlist" },
+  "Completed":      { color: "#389E0D", label: "Completed" },
+  "Signed":         { color: "#389E0D", label: "Signed" },
+};
+
+/** Ordered stages shown in the kanban board. */
+export const KANBAN_STAGES: SubscriptionStage[] = [
+  "Hasn't Started",
+  "Started",
+  "Counter Sign",
+  "Waitlist",
+  "Completed",
+];
 
 export type Offering = {
   id: string;
@@ -122,3 +163,126 @@ export const OFFERINGS: Offering[] = [
     raiseTarget: 20_000_000,
   },
 ];
+
+/* ------------------------------------------------------------------ *
+ * Sample prospects (for off-1)
+ * ------------------------------------------------------------------ */
+
+export const PROSPECTS: Prospect[] = [
+  {
+    id: "pr-1",
+    offeringId: "off-1",
+    name: "David Kim",
+    stage: "Hasn't Started",
+    subscriptionStep: "Not Started",
+    daysInStage: 5,
+    dataRoomAccess: true,
+  },
+  {
+    id: "pr-2",
+    offeringId: "off-1",
+    name: "Sarah Johnson",
+    stage: "Started",
+    subscriptionStep: "Investing Profile",
+    daysInStage: 13,
+    subscriptionAmount: 50_000,
+    dataRoomAccess: true,
+  },
+  {
+    id: "pr-3",
+    offeringId: "off-1",
+    name: "Michael Chen",
+    stage: "Started",
+    subscriptionStep: "Sign and Upload Docs",
+    daysInStage: 21,
+    subscriptionAmount: 100_000,
+    dataRoomAccess: true,
+  },
+  {
+    id: "pr-4",
+    offeringId: "off-1",
+    name: "Alina Nemirovski",
+    stage: "Started",
+    subscriptionStep: "Sign and Upload Docs",
+    daysInStage: 21,
+    subscriptionAmount: 100,
+    organization: "Nemirovski Capital",
+    dataRoomAccess: true,
+  },
+  {
+    id: "pr-5",
+    offeringId: "off-1",
+    name: "Robert Davis",
+    stage: "Started",
+    subscriptionStep: "Investment Amount",
+    daysInStage: 18,
+    dataRoomAccess: true,
+  },
+  {
+    id: "pr-6",
+    offeringId: "off-1",
+    name: "Jessica Wong",
+    stage: "Started",
+    subscriptionStep: "Investing Profile",
+    daysInStage: 7,
+    subscriptionAmount: 25_000,
+    dataRoomAccess: true,
+  },
+  {
+    id: "pr-7",
+    offeringId: "off-1",
+    name: "Tom Goldstein",
+    stage: "Started",
+    subscriptionStep: "Funding Instructions",
+    daysInStage: 30,
+    subscriptionAmount: 200_000,
+    organization: "Goldstein Family Office",
+    dataRoomAccess: true,
+  },
+  {
+    id: "pr-8",
+    offeringId: "off-1",
+    name: "Priya Sharma",
+    stage: "Counter Sign",
+    subscriptionStep: "Completed",
+    daysInStage: 4,
+    subscriptionAmount: 75_000,
+    dataRoomAccess: true,
+  },
+  {
+    id: "pr-9",
+    offeringId: "off-1",
+    name: "Carlos Rivera",
+    stage: "Waitlist",
+    subscriptionStep: "Completed",
+    daysInStage: 12,
+    subscriptionAmount: 150_000,
+    softCommitment: 150_000,
+    dataRoomAccess: true,
+  },
+  {
+    id: "pr-10",
+    offeringId: "off-1",
+    name: "Emma Larsen",
+    stage: "Completed",
+    subscriptionStep: "Completed",
+    daysInStage: 22,
+    subscriptionAmount: 2_222,
+    dataRoomAccess: true,
+  },
+  {
+    id: "pr-11",
+    offeringId: "off-1",
+    name: "Mark Sabati",
+    stage: "Completed",
+    subscriptionStep: "Completed",
+    daysInStage: 21,
+    subscriptionAmount: 10_000,
+    organization: "Sabati Investments",
+    dataRoomAccess: true,
+  },
+];
+
+export function getProspectsForOffering(offeringId: string): Prospect[] {
+  return PROSPECTS.filter((p) => p.offeringId === offeringId);
+}

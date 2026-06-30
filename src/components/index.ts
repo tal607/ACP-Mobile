@@ -34,6 +34,9 @@ export {
   countActiveFilters,
 } from "./FilterSheet";
 export { CollapseCard } from "./CollapseCard";
+export { ProspectCard } from "./ProspectCard";
+export { KanbanColumn } from "./KanbanColumn";
+export { KanbanBoard } from "./KanbanBoard";
 export { ContactActionSheet } from "./ContactActionSheet";
 export { CreateContactSheet } from "./CreateContactSheet";
 export { CreateActivitySheet, type CreateActivityKind } from "./CreateActivitySheet";

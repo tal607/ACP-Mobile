@@ -87,6 +87,8 @@ export const ICONS = {
   activity: "pulse-outline",
   // AI Co-pilot — slim filled 4-point sparkle (Ionicons' filled sparkle is too chunky).
   copilot: { lib: "mci", name: "star-four-points" },
+  // Kanban drag handle
+  grip: { lib: "mci", name: "drag-vertical" },
   // contact actions / details
   trash: "trash-outline",
   portal: "eye-outline",

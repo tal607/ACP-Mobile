@@ -15,9 +15,37 @@ type MetricCardProps = {
    * Pass undefined to hide the bar.
    */
   progress?: number;
+  /**
+   * Optional secondary line under the value, e.g. "3 completed" or
+   * "of $5M target". Omit to keep the tighter no-subtitle layout.
+   */
+  subtitle?: string;
   /** Style forwarded to the Surface wrapper — use for flex sizing, minWidth, etc. */
   style?: ViewStyle;
 };
+
+/** Vertical gap between the title and the value. Tune manually. */
+const TITLE_TO_VALUE_GAP = 14;
+/** Vertical gap between the value and the progress bar / subtitle. Tune manually. */
+const VALUE_TO_DETAIL_GAP = 6;
+/**
+ * Line height of the value. Keep this EQUAL to the font size (18) so the
+ * number's line box hugs the glyphs — then TITLE_TO_VALUE_GAP and
+ * VALUE_TO_DETAIL_GAP are the only things controlling the spacing, and they
+ * stay independent. Raising it adds space both above AND below the number.
+ */
+const VALUE_LINE_HEIGHT = 18;
+/**
+ * Shared style for all text below the number — the progress percentage AND
+ * the subtitle. Change here once to keep them the same size / weight.
+ * lineHeight === fontSize so the gaps stay controlled purely by margins.
+ */
+const DETAIL_TEXT = {
+  fontSize: 11,
+  lineHeight: 16,
+  fontWeight: "400",
+  color: TONE_HEX.muted,
+} as const;
 
 /**
  * Shared metric card used across profile detail, investments tab, and
@@ -29,15 +57,17 @@ export function MetricCard({
   value,
   valueColor,
   progress,
+  subtitle,
   style,
 }: MetricCardProps): JSX.Element {
   return (
-    <Surface style={{ padding: 10, borderRadius: 14, gap: 4, ...style }}>
+    <Surface style={{ padding: 10, borderRadius: 14, ...style }}>
       <Typography
         style={{
           fontSize: 12,
+          lineHeight: 12,
           color: TONE_HEX.muted,
-          fontWeight: "500",
+          fontWeight: "400",
         }}
       >
         {label}
@@ -45,7 +75,13 @@ export function MetricCard({
 
       <Typography
         weight="bold"
-        style={{ fontSize: 18, color: valueColor ?? TONE_HEX.foreground }}
+        style={{
+          fontSize: 18,
+          fontWeight: "700",
+          lineHeight: VALUE_LINE_HEIGHT,
+          color: valueColor ?? TONE_HEX.foreground,
+          marginTop: TITLE_TO_VALUE_GAP,
+        }}
       >
         {value}
       </Typography>
@@ -56,7 +92,7 @@ export function MetricCard({
             flexDirection: "row",
             alignItems: "center",
             gap: 6,
-            marginTop: 2,
+            marginTop: VALUE_TO_DETAIL_GAP,
           }}
         >
           <View
@@ -78,12 +114,18 @@ export function MetricCard({
               }}
             />
           </View>
-          <Typography
-            style={{ fontSize: 12, color: TONE_HEX.muted, fontWeight: "500" }}
-          >
+          <Typography style={DETAIL_TEXT}>
             {Math.round(progress * 100)}%
           </Typography>
         </View>
+      )}
+
+      {subtitle !== undefined && (
+        <Typography
+          style={{ ...DETAIL_TEXT, marginTop: VALUE_TO_DETAIL_GAP }}
+        >
+          {subtitle}
+        </Typography>
       )}
     </Surface>
   );

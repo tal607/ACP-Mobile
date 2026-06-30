@@ -29,6 +29,7 @@ const STAGE_COLOR: Record<
   "Hasn't Started": "default",
   "Started":        "accent",
   "Counter Sign":   "warning",
+  "Waitlist":       "warning",
   "Completed":      "success",
   "Signed":         "success",
 };
