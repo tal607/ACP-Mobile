@@ -18,10 +18,10 @@ type BottomTabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>["tab
 
 /** Route name → label + icon. Order here is the render order of the side tabs. */
 const TABS: Record<string, { label: string; icon: IconName }> = {
-  index: { label: "Home", icon: "home" },
-  contacts: { label: "Contacts", icon: "contacts" },
-  calendar: { label: "Calendar", icon: "calendar" },
-  activity: { label: "Activity", icon: "activity" },
+  index:     { label: "Home",      icon: "home" },
+  contacts:  { label: "Contacts",  icon: "contacts" },
+  offerings: { label: "Offerings", icon: "org" },
+  activity:  { label: "Activity",  icon: "activity" },
 };
 
 function TabButton({

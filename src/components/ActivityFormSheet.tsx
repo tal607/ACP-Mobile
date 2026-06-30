@@ -13,6 +13,7 @@ import { Chip, Typography } from "heroui-native";
 import { ScopedTheme } from "uniwind";
 import { ACTIVITY, TONE_HEX } from "@/theme/tokens";
 import { CONTACTS, type ContactDetailData } from "@/data/contacts";
+import { STAFF_MEMBERS, CURRENT_USER, type StaffMember } from "@/data/staff";
 import type { FeedActivity } from "@/data/activities";
 import { Icon } from "./ui/Icon";
 import { InitialsAvatar } from "./ui/InitialsAvatar";
@@ -60,7 +61,7 @@ const KIND_CONFIG: Record<
     actionWord: "logged a",
     noun: "Meeting",
     mockTranscription:
-      "Good meeting — covered Q3 numbers and pipeline. Strong interest in the new fund. Need to schedule a follow-up.",
+      "Good meeting - covered Q3 numbers and pipeline. Strong interest in the new fund. Need to schedule a follow-up.",
   },
   email: {
     label: "Log email",
@@ -73,16 +74,29 @@ const KIND_CONFIG: Record<
   },
 };
 
-const DATE_OPTIONS = ["Today", "Yesterday", "2 days ago", "This week"];
+const DATE_OPTIONS = ["Today", "Yesterday", "2 days ago", "This week", "Custom..."];
+
+const FOLLOWUP_OPTIONS = ["Tomorrow", "In 3 days", "Next week", "Custom..."];
+
+const PRIORITY_OPTIONS: Array<{
+  label: string;
+  color: string;
+  bg: string;
+  chipColor: "default" | "success" | "warning" | "danger";
+}> = [
+  { label: "None",   color: "#8c8c8c", bg: "#f5f5f5", chipColor: "default" },
+  { label: "Low",    color: "#15803d", bg: "#f0fdf4", chipColor: "success"  },
+  { label: "Medium", color: "#b45309", bg: "#fffbeb", chipColor: "warning"  },
+  { label: "High",   color: "#dc2626", bg: "#fff5f5", chipColor: "danger"   },
+];
 
 const fmtTime = (s: number) =>
   `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
 /* ------------------------------------------------------------------ *
- * Sub-components
+ * PropRow
  * ------------------------------------------------------------------ */
 
-/** Single property row — icon · label · value */
 function PropRow({
   icon,
   label,
@@ -105,18 +119,26 @@ function PropRow({
   );
 }
 
-/** Slim badge using HeroUI Chip soft variant */
 function PropChip({
   label,
   color = "accent",
+  onRemove,
 }: {
   label: string;
   color?: "accent" | "success" | "warning" | "danger" | "default";
+  onRemove?: () => void;
 }): JSX.Element {
   return (
-    <Chip size="sm" variant="soft" color={color}>
-      <Chip.Label>{label}</Chip.Label>
-    </Chip>
+    <View style={{ flexDirection: "row", alignItems: "center" }}>
+      <Chip size="sm" variant="soft" color={color}>
+        <Chip.Label>{label}</Chip.Label>
+      </Chip>
+      {onRemove && (
+        <Pressable onPress={onRemove} hitSlop={6} style={{ marginLeft: 2 }}>
+          <Icon name="close" size={11} tone="muted" />
+        </Pressable>
+      )}
+    </View>
   );
 }
 
@@ -125,47 +147,246 @@ const propStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    height: 42,
+    minHeight: 42,
+    paddingVertical: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#e4e4e7",
   },
   iconWrap: { width: 22, alignItems: "center" },
   label: { fontSize: 13, color: TONE_HEX.muted, width: 100, paddingLeft: 8 },
-  valueWrap: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },
-  valueText: { fontSize: 13, color: TONE_HEX.foreground },
+  valueWrap: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexWrap: "wrap",
+  },
   mutedText: { fontSize: 13, color: TONE_HEX.muted },
 });
 
-/** Waveform animation bars */
+/* ------------------------------------------------------------------ *
+ * Waveform
+ * ------------------------------------------------------------------ */
+
 function Waveform({ heights }: { heights: number[] }): JSX.Element {
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 2, flex: 1 }}>
       {heights.map((h, i) => (
-        <View
-          key={i}
-          style={{
-            width: 3,
-            height: h,
-            backgroundColor: "#ef4444",
-            borderRadius: 2,
-          }}
-        />
+        <View key={i} style={{ width: 3, height: h, backgroundColor: "#ef4444", borderRadius: 2 }} />
       ))}
     </View>
   );
 }
 
 /* ------------------------------------------------------------------ *
- * Contact picker overlay
+ * Inline expand helpers
  * ------------------------------------------------------------------ */
 
-function ContactPickerOverlay({
-  selected,
+function InlineChipRow({
+  options,
+  active,
+  activeStyle,
   onSelect,
+}: {
+  options: string[];
+  active: string;
+  activeStyle?: "green" | "blue";
+  onSelect: (opt: string) => void;
+}): JSX.Element {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={expandStyles.chipRow}
+      style={expandStyles.chipScroll}
+    >
+      {options.map((opt) => {
+        const isActive = opt === active;
+        return (
+          <Pressable
+            key={opt}
+            onPress={() => onSelect(opt)}
+            style={[
+              expandStyles.chip,
+              isActive && (activeStyle === "green" ? expandStyles.chipGreen : expandStyles.chipBlue),
+            ]}
+          >
+            <Typography
+              style={[
+                expandStyles.chipLabel,
+                isActive && (activeStyle === "green"
+                  ? { color: "#15803d", fontWeight: "500" }
+                  : { color: TONE_HEX.accent, fontWeight: "500" }),
+              ]}
+            >
+              {opt}
+            </Typography>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+function CustomDateInput({
+  value,
+  onChange,
+  onSubmit,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSubmit: () => void;
+  placeholder?: string;
+}): JSX.Element {
+  return (
+    <View style={expandStyles.customDateRow}>
+      <Icon name="meeting" size={14} tone="muted" />
+      <TextInput
+        style={expandStyles.customDateInput}
+        placeholder={placeholder ?? "e.g. Jul 15"}
+        placeholderTextColor={TONE_HEX.muted}
+        value={value}
+        onChangeText={onChange}
+        onSubmitEditing={onSubmit}
+        returnKeyType="done"
+        autoFocus
+      />
+      <Pressable onPress={onSubmit} style={expandStyles.customDateDone}>
+        <Typography style={{ fontSize: 13, fontWeight: "600", color: TONE_HEX.accent }}>Done</Typography>
+      </Pressable>
+    </View>
+  );
+}
+
+const expandStyles = StyleSheet.create({
+  chipScroll: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#e4e4e7",
+  },
+  chipRow: {
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 99,
+    backgroundColor: "#f5f5f5",
+    borderWidth: 0.5,
+    borderColor: "#e0e0e0",
+  },
+  chipGreen: { backgroundColor: "#f0fdf4", borderColor: "#86efac" },
+  chipBlue: {
+    backgroundColor: `${TONE_HEX.accent}10`,
+    borderColor: `${TONE_HEX.accent}45`,
+  },
+  chipLabel: { fontSize: 13, color: TONE_HEX.foreground },
+  customDateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#e4e4e7",
+    backgroundColor: "#fafafa",
+  },
+  customDateInput: {
+    flex: 1,
+    fontSize: 14,
+    color: TONE_HEX.foreground,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: "#f0f0f0",
+  },
+  customDateDone: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+});
+
+/* ------------------------------------------------------------------ *
+ * Staff picker (inline chip grid)
+ * ------------------------------------------------------------------ */
+
+function StaffChipExpand({
+  selected,
+  onToggle,
+}: {
+  selected: StaffMember[];
+  onToggle: (s: StaffMember) => void;
+}): JSX.Element {
+  return (
+    <View style={staffStyles.container}>
+      {STAFF_MEMBERS.map((s) => {
+        const active = selected.some((x) => x.id === s.id);
+        return (
+          <Pressable
+            key={s.id}
+            onPress={() => onToggle(s)}
+            style={[staffStyles.chip, active && staffStyles.chipActive]}
+          >
+            <InitialsAvatar initials={s.initials} size="sm" />
+            <View>
+              <Typography style={[staffStyles.name, active && { color: TONE_HEX.accent }]}>
+                {s.name}
+              </Typography>
+              <Typography style={staffStyles.role}>{s.role}</Typography>
+            </View>
+            {active && <Icon name="check" size={13} tone="accent" />}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+const staffStyles = StyleSheet.create({
+  container: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#e4e4e7",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: "#f5f5f5",
+    borderWidth: 0.5,
+    borderColor: "#e4e4e7",
+    minWidth: "45%",
+    flex: 1,
+  },
+  chipActive: {
+    backgroundColor: `${TONE_HEX.accent}0d`,
+    borderColor: `${TONE_HEX.accent}55`,
+  },
+  name: { fontSize: 13, fontWeight: "500", color: TONE_HEX.foreground },
+  role: { fontSize: 11, color: TONE_HEX.muted },
+});
+
+/* ------------------------------------------------------------------ *
+ * Associated records picker overlay (multi-select)
+ * ------------------------------------------------------------------ */
+
+function RecordPickerOverlay({
+  selected,
+  onToggle,
   onClose,
 }: {
-  selected: ContactDetailData | null;
-  onSelect: (c: ContactDetailData) => void;
+  selected: ContactDetailData[];
+  onToggle: (c: ContactDetailData) => void;
   onClose: () => void;
 }): JSX.Element {
   const [query, setQuery] = useState("");
@@ -185,8 +406,11 @@ function ContactPickerOverlay({
           <Icon name="back" size="md" tone="foreground" />
         </Pressable>
         <Typography weight="semibold" style={{ fontSize: 15, flex: 1 }}>
-          Select Contact
+          Associated Records
         </Typography>
+        <Pressable onPress={onClose} style={cpStyles.doneBtn}>
+          <Typography style={cpStyles.doneBtnLabel}>Done</Typography>
+        </Pressable>
       </View>
       <View style={cpStyles.searchRow}>
         <Icon name="search" size="sm" tone="muted" />
@@ -207,23 +431,27 @@ function ContactPickerOverlay({
         )}
       </View>
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {filtered.map((contact, i) => (
-          <View key={contact.id}>
-            {i > 0 && <View style={cpStyles.hairline} />}
-            <Pressable onPress={() => onSelect(contact)} style={cpStyles.row}>
-              <InitialsAvatar initials={contact.initials} size="sm" />
-              <View style={{ flex: 1 }}>
-                <Typography type="body-sm" weight="semibold">{contact.name}</Typography>
-                {contact.company ? (
-                  <Typography type="body-xs" color="muted">{contact.company}</Typography>
-                ) : null}
-              </View>
-              {selected?.id === contact.id && (
-                <Icon name="check" size="sm" tone="accent" />
-              )}
-            </Pressable>
-          </View>
-        ))}
+        {filtered.map((contact, i) => {
+          const isSelected = selected.some((s) => s.id === contact.id);
+          return (
+            <View key={contact.id}>
+              {i > 0 && <View style={cpStyles.hairline} />}
+              <Pressable onPress={() => onToggle(contact)} style={cpStyles.row}>
+                <InitialsAvatar initials={contact.initials} size="sm" />
+                <View style={{ flex: 1 }}>
+                  <Typography type="body-sm" weight="semibold">{contact.name}</Typography>
+                  {contact.company ? (
+                    <Typography type="body-xs" color="muted">{contact.company}</Typography>
+                  ) : null}
+                </View>
+                {isSelected
+                  ? <Icon name="check" size="sm" tone="accent" />
+                  : <View style={{ width: 16 }} />
+                }
+              </Pressable>
+            </View>
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -254,6 +482,13 @@ const cpStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  doneBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: `${TONE_HEX.accent}15`,
+  },
+  doneBtnLabel: { fontSize: 13, fontWeight: "600", color: TONE_HEX.accent },
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -302,11 +537,25 @@ export function ActivityFormSheet({
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [selectedContact, setSelectedContact] = useState<ContactDetailData | null>(null);
-  const [showContactPicker, setShowContactPicker] = useState(false);
-  const [followUp, setFollowUp] = useState(false);
+
+  // Property rows state
   const [selectedDate, setSelectedDate] = useState("Today");
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [customDate, setCustomDate] = useState("");
+  const [showCustomDate, setShowCustomDate] = useState(false);
+
+  const [assignedTo, setAssignedTo] = useState<StaffMember[]>([CURRENT_USER]);
+
+  const [associatedRecords, setAssociatedRecords] = useState<ContactDetailData[]>([]);
+  const [showRecordPicker, setShowRecordPicker] = useState(false);
+
+  const [followUpDate, setFollowUpDate] = useState<string | null>(null);
+  const [customFollowUp, setCustomFollowUp] = useState("");
+  const [showCustomFollowUp, setShowCustomFollowUp] = useState(false);
+
+  const [priority, setPriority] = useState("None");
+
+  // Which inline row is expanded
+  const [openProp, setOpenProp] = useState<"date" | "assignedTo" | "followup" | "priority" | null>(null);
 
   // Voice recording
   const [isRecording, setIsRecording] = useState(false);
@@ -316,7 +565,13 @@ export function ActivityFormSheet({
   const isEditMode = !!initialActivity && !readOnly;
   const isViewMode = !!initialActivity && !!readOnly;
 
-  // Reset / pre-fill state when the sheet opens
+  const toggleProp = (prop: "date" | "assignedTo" | "followup" | "priority") => {
+    setOpenProp((prev) => (prev === prop ? null : prop));
+    setShowCustomDate(false);
+    setShowCustomFollowUp(false);
+  };
+
+  // Reset on open
   useEffect(() => {
     if (visible) {
       if (initialActivity) {
@@ -328,36 +583,38 @@ export function ActivityFormSheet({
         setBody("");
         setSelectedDate("Today");
       }
-      setSelectedContact(defaultContact ?? null);
-      setShowContactPicker(false);
-      setFollowUp(false);
-      setDatePickerOpen(false);
+      setCustomDate("");
+      setShowCustomDate(false);
+      setAssignedTo([CURRENT_USER]);
+      setAssociatedRecords(defaultContact ? [defaultContact] : []);
+      setShowRecordPicker(false);
+      setFollowUpDate(null);
+      setCustomFollowUp("");
+      setShowCustomFollowUp(false);
+      setPriority("None");
+      setOpenProp(null);
       setIsRecording(false);
       setRecordingSecs(0);
       setWaveHeights(Array(14).fill(6));
     }
   }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Recording timer + waveform animation
+  // Recording timer + waveform
   useEffect(() => {
-    if (!isRecording) {
-      setWaveHeights(Array(14).fill(6));
-      return;
-    }
+    if (!isRecording) { setWaveHeights(Array(14).fill(6)); return; }
     const timer = setInterval(() => setRecordingSecs((s) => s + 1), 1000);
     const wave = setInterval(() => {
       setWaveHeights(Array.from({ length: 14 }, () => Math.random() * 14 + 4));
     }, 120);
-    return () => {
-      clearInterval(timer);
-      clearInterval(wave);
-    };
+    return () => { clearInterval(timer); clearInterval(wave); };
   }, [isRecording]);
 
   if (!kind) return null;
 
   const config = KIND_CONFIG[kind];
   const meta = ACTIVITY[kind];
+
+  const priorityConfig = PRIORITY_OPTIONS.find((p) => p.label === priority) ?? PRIORITY_OPTIONS[0];
 
   const handleSave = () => {
     const activity: FeedActivity = {
@@ -370,24 +627,71 @@ export function ActivityFormSheet({
       time: isEditMode ? selectedDate : "Just now",
       title: title.trim() || config.noun,
       desc: body.trim(),
-      contactId: selectedContact?.id,
-      contactName: selectedContact?.name,
+      contactId: associatedRecords[0]?.id,
+      contactName: associatedRecords[0]?.name,
       dateGroup: (initialActivity as FeedActivity | undefined)?.dateGroup ?? "Today",
     };
     onSave(activity);
   };
 
   const handleDelete = () => {
-    if (initialActivity) {
-      onDelete?.(initialActivity.id);
-      onClose();
-    }
+    if (initialActivity) { onDelete?.(initialActivity.id); onClose(); }
   };
 
   const stopRecording = () => {
     setIsRecording(false);
     setRecordingSecs(0);
     setBody((prev) => (prev ? `${prev}\n\n${config.mockTranscription}` : config.mockTranscription));
+  };
+
+  const handleDateSelect = (opt: string) => {
+    if (opt === "Custom...") {
+      setShowCustomDate(true);
+    } else {
+      setSelectedDate(opt);
+      setShowCustomDate(false);
+      setOpenProp(null);
+    }
+  };
+
+  const commitCustomDate = () => {
+    if (customDate.trim()) setSelectedDate(customDate.trim());
+    setShowCustomDate(false);
+    setOpenProp(null);
+    setCustomDate("");
+  };
+
+  const handleFollowUpSelect = (opt: string) => {
+    if (opt === "Custom...") {
+      setShowCustomFollowUp(true);
+    } else {
+      setFollowUpDate(opt);
+      setShowCustomFollowUp(false);
+      setOpenProp(null);
+    }
+  };
+
+  const commitCustomFollowUp = () => {
+    if (customFollowUp.trim()) setFollowUpDate(customFollowUp.trim());
+    setShowCustomFollowUp(false);
+    setOpenProp(null);
+    setCustomFollowUp("");
+  };
+
+  const toggleStaff = (s: StaffMember) => {
+    setAssignedTo((prev) =>
+      prev.some((x) => x.id === s.id)
+        ? prev.filter((x) => x.id !== s.id)
+        : [...prev, s],
+    );
+  };
+
+  const toggleRecord = (c: ContactDetailData) => {
+    setAssociatedRecords((prev) =>
+      prev.some((x) => x.id === c.id)
+        ? prev.filter((x) => x.id !== c.id)
+        : [...prev, c],
+    );
   };
 
   return (
@@ -414,21 +718,14 @@ export function ActivityFormSheet({
               <Pressable onPress={onClose} hitSlop={12} style={styles.navCloseBtn}>
                 <Icon name="close" size="md" tone="muted" />
               </Pressable>
-
               <View style={styles.navCenter}>
-                <View
-                  style={[
-                    styles.kindIcon,
-                    { backgroundColor: `${TONE_HEX[meta.tone]}18` },
-                  ]}
-                >
+                <View style={[styles.kindIcon, { backgroundColor: `${TONE_HEX[meta.tone]}18` }]}>
                   <Icon name={meta.icon} size={13} tone={meta.tone} />
                 </View>
                 <Typography style={styles.navTitle}>
                   {isViewMode ? `${config.label} · Synced` : config.label}
                 </Typography>
               </View>
-
               <View style={styles.navRight}>
                 {isEditMode && (
                   <Pressable onPress={handleDelete} hitSlop={12} style={styles.trashBtn}>
@@ -448,7 +745,7 @@ export function ActivityFormSheet({
               </View>
             </View>
 
-            {/* Document title input */}
+            {/* Title input */}
             <TextInput
               ref={titleRef}
               style={[styles.titleInput, isViewMode && styles.titleInputReadOnly]}
@@ -462,76 +759,167 @@ export function ActivityFormSheet({
               editable={!isViewMode}
             />
 
-            {/* Property rows */}
-            <View>
-              {/* Date */}
+            {/* Property rows + body in one scroll */}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              style={{ flex: 1 }}
+            >
+              {/* --- DATE --- */}
               <PropRow
                 icon="meeting"
                 label="Date"
-                onPress={isViewMode ? undefined : () => setDatePickerOpen((o) => !o)}
+                onPress={isViewMode ? undefined : () => toggleProp("date")}
               >
-                <PropChip label={selectedDate} color="success" />
+                <PropChip
+                  label={selectedDate}
+                  color="success"
+                />
               </PropRow>
 
-              {datePickerOpen && (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.dateChips}
-                  style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#e4e4e7" }}
-                >
-                  {DATE_OPTIONS.map((opt) => {
-                    const active = opt === selectedDate;
+              {openProp === "date" && (
+                <>
+                  <InlineChipRow
+                    options={DATE_OPTIONS}
+                    active={selectedDate}
+                    activeStyle="green"
+                    onSelect={handleDateSelect}
+                  />
+                  {showCustomDate && (
+                    <CustomDateInput
+                      value={customDate}
+                      onChange={setCustomDate}
+                      onSubmit={commitCustomDate}
+                      placeholder="e.g. Jul 15"
+                    />
+                  )}
+                </>
+              )}
+
+              {/* --- ASSIGNED TO --- */}
+              <PropRow
+                icon="person"
+                label="Assigned to"
+                onPress={isViewMode ? undefined : () => toggleProp("assignedTo")}
+              >
+                {assignedTo.length === 0 ? (
+                  <Typography style={propStyles.mutedText}>Add staff...</Typography>
+                ) : (
+                  assignedTo.map((s) => (
+                    <PropChip
+                      key={s.id}
+                      label={s.name.split(" ")[0]}
+                      color="default"
+                      onRemove={isViewMode ? undefined : () => toggleStaff(s)}
+                    />
+                  ))
+                )}
+              </PropRow>
+
+              {openProp === "assignedTo" && !isViewMode && (
+                <StaffChipExpand selected={assignedTo} onToggle={toggleStaff} />
+              )}
+
+              {/* --- ASSOCIATED RECORDS --- */}
+              <PropRow
+                icon="contacts"
+                label="Associated"
+                onPress={isViewMode ? undefined : () => setShowRecordPicker(true)}
+              >
+                {associatedRecords.length === 0 ? (
+                  <Typography style={propStyles.mutedText}>Add records...</Typography>
+                ) : (
+                  associatedRecords.map((c) => (
+                    <PropChip
+                      key={c.id}
+                      label={c.name.split(" ")[0]}
+                      color="accent"
+                      onRemove={
+                        isViewMode
+                          ? undefined
+                          : () => toggleRecord(c)
+                      }
+                    />
+                  ))
+                )}
+              </PropRow>
+
+              {/* --- FOLLOW-UP --- */}
+              <PropRow
+                icon="flag"
+                label="Follow-up"
+                onPress={isViewMode ? undefined : () => {
+                  if (followUpDate) {
+                    setFollowUpDate(null);
+                    setOpenProp(null);
+                  } else {
+                    toggleProp("followup");
+                  }
+                }}
+              >
+                {followUpDate ? (
+                  <PropChip
+                    label={followUpDate}
+                    color="warning"
+                    onRemove={isViewMode ? undefined : () => setFollowUpDate(null)}
+                  />
+                ) : (
+                  <Typography style={propStyles.mutedText}>Set date...</Typography>
+                )}
+              </PropRow>
+
+              {openProp === "followup" && !isViewMode && (
+                <>
+                  <InlineChipRow
+                    options={FOLLOWUP_OPTIONS}
+                    active={followUpDate ?? ""}
+                    activeStyle="blue"
+                    onSelect={handleFollowUpSelect}
+                  />
+                  {showCustomFollowUp && (
+                    <CustomDateInput
+                      value={customFollowUp}
+                      onChange={setCustomFollowUp}
+                      onSubmit={commitCustomFollowUp}
+                      placeholder="e.g. Jul 20"
+                    />
+                  )}
+                </>
+              )}
+
+              {/* --- PRIORITY --- */}
+              <PropRow
+                icon="flag"
+                label="Priority"
+                onPress={isViewMode ? undefined : () => toggleProp("priority")}
+              >
+                <PropChip label={priority} color={priorityConfig.chipColor} />
+              </PropRow>
+
+              {openProp === "priority" && !isViewMode && (
+                <View style={styles.priorityRow}>
+                  {PRIORITY_OPTIONS.map((opt) => {
+                    const active = opt.label === priority;
                     return (
                       <Pressable
-                        key={opt}
-                        onPress={() => { setSelectedDate(opt); setDatePickerOpen(false); }}
-                        style={[styles.dateChip, active && styles.dateChipActive]}
+                        key={opt.label}
+                        onPress={() => { setPriority(opt.label); setOpenProp(null); }}
+                        style={[
+                          styles.priorityChip,
+                          { backgroundColor: opt.bg, borderColor: `${opt.color}35` },
+                          active && { borderColor: opt.color, borderWidth: 1.5 },
+                        ]}
                       >
-                        <Typography
-                          style={[styles.dateChipLabel, active && styles.dateChipLabelActive]}
-                        >
-                          {opt}
+                        <Typography style={[styles.priorityLabel, { color: opt.color }]}>
+                          {opt.label}
                         </Typography>
                       </Pressable>
                     );
                   })}
-                </ScrollView>
+                </View>
               )}
 
-              {/* Related to */}
-              <PropRow
-                icon="person"
-                label="Related to"
-                onPress={isViewMode ? undefined : () => !defaultContact && setShowContactPicker(true)}
-              >
-                {selectedContact ? (
-                  <PropChip label={selectedContact.name} />
-                ) : (
-                  <Typography style={propStyles.mutedText}>Add contact...</Typography>
-                )}
-              </PropRow>
-
-              {/* Follow-up */}
-              <PropRow
-                icon="flag"
-                label="Follow-up"
-                onPress={isViewMode ? undefined : () => setFollowUp((f) => !f)}
-              >
-                {followUp ? (
-                  <PropChip label="On" />
-                ) : (
-                  <Typography style={propStyles.mutedText}>Off</Typography>
-                )}
-              </PropRow>
-            </View>
-
-            {/* Body textarea */}
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              style={styles.bodyScroll}
-            >
+              {/* --- BODY --- */}
               <TextInput
                 style={styles.bodyInput}
                 placeholder={config.bodyPlaceholder}
@@ -545,7 +933,7 @@ export function ActivityFormSheet({
               />
             </ScrollView>
 
-            {/* Toolbar / recording bar — hidden in view-only mode */}
+            {/* Toolbar / recording bar */}
             {isViewMode ? null : isRecording ? (
               <View style={styles.recordingBar}>
                 <View style={styles.recDot} />
@@ -567,15 +955,12 @@ export function ActivityFormSheet({
               </View>
             )}
 
-            {/* Contact picker overlay */}
-            {showContactPicker && (
-              <ContactPickerOverlay
-                selected={selectedContact}
-                onSelect={(c) => {
-                  setSelectedContact(c);
-                  setShowContactPicker(false);
-                }}
-                onClose={() => setShowContactPicker(false)}
+            {/* Associated records overlay */}
+            {showRecordPicker && (
+              <RecordPickerOverlay
+                selected={associatedRecords}
+                onToggle={toggleRecord}
+                onClose={() => setShowRecordPicker(false)}
               />
             )}
           </View>
@@ -612,8 +997,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 4,
   },
-
-  // Nav bar
   nav: {
     flexDirection: "row",
     alignItems: "center",
@@ -646,11 +1029,7 @@ const styles = StyleSheet.create({
   },
   navTitle: { fontSize: 14, fontWeight: "600", color: TONE_HEX.foreground },
   navSaveBtn: { fontSize: 14, fontWeight: "600", color: TONE_HEX.accent },
-  navRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
+  navRight: { flexDirection: "row", alignItems: "center", gap: 10 },
   trashBtn: {
     width: 30,
     height: 30,
@@ -665,13 +1044,7 @@ const styles = StyleSheet.create({
     borderRadius: 99,
     backgroundColor: "#f5f5f5",
   },
-  syncedText: {
-    fontSize: 12,
-    color: TONE_HEX.muted,
-    fontWeight: "500",
-  },
-
-  // Title input
+  syncedText: { fontSize: 12, color: TONE_HEX.muted, fontWeight: "500" },
   titleInput: {
     fontSize: 22,
     fontWeight: "600",
@@ -681,39 +1054,27 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     lineHeight: 28,
   },
-  titleInputReadOnly: {
-    color: TONE_HEX.foreground,
-  },
+  titleInputReadOnly: { color: TONE_HEX.foreground },
 
-  // Date chips (inline picker)
-  dateChips: {
+  // Priority segmented row
+  priorityRow: {
     flexDirection: "row",
-    gap: 6,
+    gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 10,
-  },
-  dateChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 99,
-    backgroundColor: "#f5f5f5",
-    borderWidth: 0.5,
-    borderColor: "#e0e0e0",
-  },
-  dateChipActive: {
-    backgroundColor: "#f0fdf4",
-    borderColor: "#86efac",
-  },
-  dateChipLabel: { fontSize: 13, color: TONE_HEX.foreground },
-  dateChipLabelActive: { color: "#15803d", fontWeight: "500" },
-
-  // Body
-  bodyScroll: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#e4e4e7",
-    flex: 1,
-    minHeight: 120,
   },
+  priorityChip: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 0.5,
+  },
+  priorityLabel: { fontSize: 13, fontWeight: "500" },
+
+  // Body
   bodyInput: {
     fontSize: 15,
     color: TONE_HEX.foreground,
@@ -722,6 +1083,8 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     lineHeight: 23,
     minHeight: 100,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#e4e4e7",
   },
 
   // Toolbar
@@ -742,8 +1105,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
-  // Recording bar
   recordingBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -755,21 +1116,7 @@ const styles = StyleSheet.create({
     borderTopColor: "#e4e4e7",
     backgroundColor: "#fff5f5",
   },
-  recDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#ef4444",
-  },
-  recTime: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#ef4444",
-    minWidth: 34,
-  },
-  recDone: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: TONE_HEX.accent,
-  },
+  recDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#ef4444" },
+  recTime: { fontSize: 14, fontWeight: "600", color: "#ef4444", minWidth: 34 },
+  recDone: { fontSize: 14, fontWeight: "600", color: TONE_HEX.accent },
 });

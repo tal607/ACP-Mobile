@@ -194,12 +194,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "500",
     color: TONE_HEX.foreground,
-    marginTop: 2,
+    marginTop: 4,
   },
   subtitle: {
-    fontSize: 11.5,
+    fontSize: 12,
     color: TONE_HEX.muted,
-    marginTop: 1,
+    marginTop: 4,
   },
   syncBadge: {
     backgroundColor: "#f0f0f0",

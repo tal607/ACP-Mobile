@@ -45,6 +45,57 @@ export type Position = {
 };
 
 /* ------------------------------------------------------------------ *
+ * Investing profile types
+ * ------------------------------------------------------------------ */
+
+export type ChannelAccess = "all" | "custom" | "none";
+export type SensitiveDataAccess = "edit" | "view" | "no_access";
+export type PositionAccessType = "all" | "custom" | "none";
+export type AmlStatus = "cleared" | "review" | "flagged";
+export type AccreditationStatus = "verified" | "pending" | "not_verified";
+
+export type ProfileAttachedContact = {
+  id: string;
+  name: string;
+  initials: string;
+  isPrimary: boolean;
+  relationshipType?: string;
+  channels: ChannelAccess;
+  channelList?: string[];           // when channels === "custom"
+  sensitiveData: SensitiveDataAccess;
+  positionAccess: PositionAccessType;
+  customPositions?: string[];       // when positionAccess === "custom"
+};
+
+export type InvestingProfile = {
+  id: string;
+  name: string;
+  type: "Individual" | "Entity" | "Trust" | "Joint";
+  taxId?: string;
+  // Metrics
+  offeringSubscriptions: number;
+  activePositions: number;
+  totalCommitment: number;
+  totalContribution: number;
+  totalDistributions: number;
+  // Main details
+  placeOfBirth?: string;
+  citizenship?: string;
+  residency?: string;
+  // Mailing address
+  mailingAddress?: string;
+  // Tax details
+  electronicK1Consent: boolean;
+  disregardedEntity: boolean;
+  // Compliance
+  riskScore: number;                // 0-100
+  amlStatus: AmlStatus;
+  accreditationStatus: AccreditationStatus;
+  // Attached contacts
+  attachedContacts: ProfileAttachedContact[];
+};
+
+/* ------------------------------------------------------------------ *
  * Extended type — ContactData + detail-page fields
  * ------------------------------------------------------------------ */
 
@@ -68,11 +119,30 @@ export type ContactDetailData = ContactData & {
   activity?: Activity[];
   positions?: Position[];
   relatedContacts?: RelatedContact[];
+  profiles?: InvestingProfile[];
+  offeringSubscriptions?: import("./offerings").ContactOffering[];
 };
 
 /* ------------------------------------------------------------------ *
  * Contacts — shared source of truth for list + detail screens
  * ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ *
+ * Saved views (created on desktop, read-only on mobile)
+ * ------------------------------------------------------------------ */
+
+export type SavedView = { id: string; name: string };
+
+export const SAVED_VIEWS: SavedView[] = [
+  { id: "all", name: "All" },
+  { id: "v-hni", name: "High Net Investors" },
+  { id: "v-accredited", name: "Accredited Only" },
+  { id: "v-active", name: "Active Investors" },
+  { id: "v-fund3", name: "Fund III Prospects" },
+  { id: "v-q1", name: "Q1 Targets" },
+  { id: "v-family-office", name: "Family Offices" },
+  { id: "v-warm", name: "Warm Leads" },
+];
 
 export const CONTACTS: ContactDetailData[] = [
   {
@@ -121,6 +191,125 @@ export const CONTACTS: ContactDetailData[] = [
     relatedContacts: [
       { id: "rc-at-1", name: "Margaret Thompson", note: "Spouse" },
       { id: "rc-at-2", name: "Pinnacle Capital LLC", note: "Entity account" },
+    ],
+    profiles: [
+      {
+        id: "prof-at-1",
+        name: "Alex Thompson Individual",
+        type: "Individual",
+        taxId: "XXX-XX-1234",
+        offeringSubscriptions: 2,
+        activePositions: 2,
+        totalCommitment: 2_450_000,
+        totalContribution: 2_250_000,
+        totalDistributions: 1_153_200,
+        placeOfBirth: "New York, NY",
+        citizenship: "United States",
+        residency: "US Citizen",
+        mailingAddress: "340 Park Ave, Suite 1200\nNew York, NY 10022",
+        electronicK1Consent: true,
+        disregardedEntity: false,
+        riskScore: 35,
+        amlStatus: "cleared",
+        accreditationStatus: "verified",
+        attachedContacts: [
+          {
+            id: "pac-at-1-1",
+            name: "Alex Thompson",
+            initials: "AT",
+            isPrimary: true,
+            relationshipType: "Account Holder",
+            channels: "all",
+            sensitiveData: "edit",
+            positionAccess: "all",
+          },
+        ],
+      },
+      {
+        id: "prof-at-2",
+        name: "Pinnacle Capital LLC",
+        type: "Entity",
+        taxId: "XX-1234567",
+        offeringSubscriptions: 0,
+        activePositions: 0,
+        totalCommitment: 0,
+        totalContribution: 0,
+        totalDistributions: 0,
+        citizenship: "United States",
+        residency: "Domestic Entity",
+        mailingAddress: "1221 Avenue of the Americas\nNew York, NY 10020",
+        electronicK1Consent: false,
+        disregardedEntity: true,
+        riskScore: 58,
+        amlStatus: "review",
+        accreditationStatus: "pending",
+        attachedContacts: [
+          {
+            id: "pac-at-2-1",
+            name: "Alex Thompson",
+            initials: "AT",
+            isPrimary: true,
+            relationshipType: "Manager / Member",
+            channels: "custom",
+            channelList: ["Capital Call Notices", "Distribution Notices"],
+            sensitiveData: "view",
+            positionAccess: "all",
+          },
+          {
+            id: "pac-at-2-2",
+            name: "Margaret Thompson",
+            initials: "MT",
+            isPrimary: false,
+            relationshipType: "Member",
+            channels: "custom",
+            channelList: ["Capital Call Notices"],
+            sensitiveData: "no_access",
+            positionAccess: "none",
+          },
+        ],
+      },
+      {
+        id: "prof-at-3",
+        name: "Thompson Family Trust",
+        type: "Trust",
+        taxId: "XX-7654321",
+        offeringSubscriptions: 0,
+        activePositions: 0,
+        totalCommitment: 0,
+        totalContribution: 0,
+        totalDistributions: 0,
+        citizenship: "United States",
+        residency: "Domestic",
+        mailingAddress: "340 Park Ave, Suite 1200\nNew York, NY 10022",
+        electronicK1Consent: true,
+        disregardedEntity: false,
+        riskScore: 20,
+        amlStatus: "cleared",
+        accreditationStatus: "not_verified",
+        attachedContacts: [
+          {
+            id: "pac-at-3-1",
+            name: "Alex Thompson",
+            initials: "AT",
+            isPrimary: true,
+            relationshipType: "Trustee",
+            channels: "all",
+            sensitiveData: "edit",
+            positionAccess: "all",
+          },
+          {
+            id: "pac-at-3-2",
+            name: "Margaret Thompson",
+            initials: "MT",
+            isPrimary: false,
+            relationshipType: "Beneficiary",
+            channels: "custom",
+            channelList: ["Distribution Notices"],
+            sensitiveData: "view",
+            positionAccess: "none",
+          },
+        ],
+      },
     ],
     activity: [
       {
@@ -207,6 +396,76 @@ export const CONTACTS: ContactDetailData[] = [
           { id: "tx-at-7", type: "Distribution", dateLabel: "Dec 15, 2024", year: 2024, amount: 24_600, status: "Completed", paymentMethod: "ACH", remainingToPay: 0 },
           { id: "tx-at-8", type: "Distribution", dateLabel: "Mar 31, 2025", year: 2025, amount: 30_600, status: "Pending", paymentMethod: "ACH", remainingToPay: 30_600 },
         ],
+      },
+      {
+        id: "pos-at-2",
+        fundName: "Agora Fund III",
+        fundType: "Industrial Value-Add",
+        profile: "Alex Thompson Individual",
+        class: "LP Class A",
+        commitment: 500_000,
+        contribution: 300_000,
+        distributions: 0,
+        ownership: 0.012,
+        status: "Active",
+        vintage: 2024,
+        transactions: [
+          { id: "tx-at-cc-1", type: "Capital Call", dateLabel: "Mar 1, 2024", year: 2024, amount: 300_000, status: "Completed", note: "First tranche - 60% of commitment", period: "Q1 2024", dueDate: "Mar 15, 2024", contributionReceived: 300_000, balanceRemaining: 0 },
+          { id: "tx-at-cc-2", type: "Capital Call", dateLabel: "Sep 1, 2025", year: 2025, amount: 200_000, status: "Pending", note: "Second tranche - remaining 40%", period: "Q3 2025", dueDate: "Sep 30, 2025", contributionReceived: 0, balanceRemaining: 200_000 },
+        ],
+      },
+      {
+        id: "pos-at-3",
+        fundName: "Agora Fund I",
+        fundType: "Multifamily Core-Plus",
+        profile: "Alex Thompson Individual",
+        class: "LP Class A",
+        commitment: 750_000,
+        contribution: 750_000,
+        distributions: 1_020_000,
+        ownership: 0.028,
+        status: "Exited",
+        vintage: 2019,
+        transactions: [
+          { id: "tx-at-f1-1", type: "Contribution", dateLabel: "Jan 10, 2019", year: 2019, amount: 750_000, status: "Completed", note: "Initial capital contribution", receivedDate: "Jan 10, 2019", allocationType: "Amount" },
+          { id: "tx-at-f1-2", type: "Distribution", dateLabel: "Jun 30, 2019", year: 2019, amount: 45_000, status: "Completed", paymentMethod: "ACH", remainingToPay: 0 },
+          { id: "tx-at-f1-3", type: "Distribution", dateLabel: "Dec 15, 2019", year: 2019, amount: 52_500, status: "Completed", paymentMethod: "ACH", remainingToPay: 0 },
+          { id: "tx-at-f1-4", type: "Distribution", dateLabel: "Jun 30, 2020", year: 2020, amount: 48_000, status: "Completed", paymentMethod: "ACH", remainingToPay: 0 },
+          { id: "tx-at-f1-5", type: "Distribution", dateLabel: "Dec 15, 2020", year: 2020, amount: 54_000, status: "Completed", paymentMethod: "ACH", remainingToPay: 0 },
+          { id: "tx-at-f1-6", type: "Distribution", dateLabel: "Jun 30, 2021", year: 2021, amount: 56_250, status: "Completed", paymentMethod: "ACH", remainingToPay: 0 },
+          { id: "tx-at-f1-7", type: "Distribution", dateLabel: "Dec 15, 2021", year: 2021, amount: 60_000, status: "Completed", paymentMethod: "ACH", remainingToPay: 0 },
+          { id: "tx-at-f1-8", type: "Distribution", dateLabel: "Jun 30, 2022", year: 2022, amount: 52_500, status: "Completed", paymentMethod: "ACH", remainingToPay: 0 },
+          { id: "tx-at-f1-9", type: "Distribution", dateLabel: "Mar 15, 2023", year: 2023, amount: 651_750, status: "Completed", note: "Final distribution - fund exit", paymentMethod: "Wire", remainingToPay: 0 },
+        ],
+      },
+    ],
+    offeringSubscriptions: [
+      {
+        offeringId: "off-1",
+        prospectName: "Alex Thompson",
+        stage: "Counter Sign",
+        subscriptionAmount: 500_000,
+        dataRoomAccess: true,
+      },
+      {
+        offeringId: "off-3",
+        prospectName: "Pinnacle Capital LLC",
+        stage: "Completed",
+        subscriptionAmount: 1_200_000,
+        dataRoomAccess: true,
+      },
+      {
+        offeringId: "off-4",
+        prospectName: "Alex Thompson",
+        stage: "Started",
+        subscriptionAmount: 250_000,
+        dataRoomAccess: true,
+      },
+      {
+        offeringId: "off-7",
+        prospectName: "Thompson Family Trust",
+        stage: "Hasn't Started",
+        dataRoomAccess: true,
       },
     ],
   },

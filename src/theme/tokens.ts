@@ -42,6 +42,9 @@ export const TONE_HEX: Record<Tone, string> = {
 /** White, for icons/text on a colored (accent/primary) fill. */
 export const ON_COLOR = "#ffffff";
 
+/** Gold used for the favorite star (list badge + contact detail header). */
+export const FAVORITE_GOLD = "#F5A623";
+
 /**
  * Semantic icon names → the actual Ionicons glyph.
  * Use these names via the <Icon /> component so swapping an icon is one edit.

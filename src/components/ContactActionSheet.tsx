@@ -1,6 +1,6 @@
 import { Typography } from "heroui-native";
 import type { JSX } from "react";
-import { Linking, Modal, Pressable, StyleSheet, View } from "react-native";
+import { Modal, Pressable, StyleSheet, View } from "react-native";
 import { ScopedTheme } from "uniwind";
 import { TONE_HEX, type IconName } from "@/theme/tokens";
 import { Icon } from "./ui/Icon";
@@ -15,11 +15,9 @@ type ActionItem = {
 export function ContactActionSheet({
   visible,
   onClose,
-  email,
 }: {
   visible: boolean;
   onClose: () => void;
-  email?: string;
 }): JSX.Element | null {
   if (!visible) return null;
 
@@ -33,13 +31,6 @@ export function ContactActionSheet({
       icon: "lockOpen",
       label: "Remove Portal Access",
       onPress: () => {},
-    },
-    {
-      icon: "email",
-      label: "Send email",
-      onPress: () => {
-        if (email) Linking.openURL(`mailto:${email}`);
-      },
     },
     {
       icon: "bell",

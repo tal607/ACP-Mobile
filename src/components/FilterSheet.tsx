@@ -617,35 +617,42 @@ function ConditionRow({
             borderWidth: 1, borderColor: "#e0e0e0", overflow: "hidden",
           }}
         >
-          {availableFields.map((f, i) => {
-            const selected = f.id === condition.fieldId;
-            return (
-              <View key={f.id}>
-                {i > 0 && (
-                  <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: "#ebebeb" }} />
-                )}
-                <Pressable
-                  onPress={() => onChangeField(f.id)}
-                  style={{
-                    flexDirection: "row", alignItems: "center",
-                    paddingHorizontal: 14, paddingVertical: 11, gap: 10,
-                  }}
-                >
-                  <Typography
-                    type="body-sm"
+          <ScrollView
+            style={{ maxHeight: 220 }}
+            showsVerticalScrollIndicator
+            nestedScrollEnabled
+            keyboardShouldPersistTaps="handled"
+          >
+            {availableFields.map((f, i) => {
+              const selected = f.id === condition.fieldId;
+              return (
+                <View key={f.id}>
+                  {i > 0 && (
+                    <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: "#ebebeb" }} />
+                  )}
+                  <Pressable
+                    onPress={() => onChangeField(f.id)}
                     style={{
-                      flex: 1,
-                      color: selected ? TONE_HEX.accent : TONE_HEX.foreground,
-                      fontWeight: selected ? "600" : "400",
+                      flexDirection: "row", alignItems: "center",
+                      paddingHorizontal: 14, paddingVertical: 11, gap: 10,
                     }}
                   >
-                    {f.label}
-                  </Typography>
-                  {selected && <Icon name="check" size="sm" color={TONE_HEX.accent} />}
-                </Pressable>
-              </View>
-            );
-          })}
+                    <Typography
+                      type="body-sm"
+                      style={{
+                        flex: 1,
+                        color: selected ? TONE_HEX.accent : TONE_HEX.foreground,
+                        fontWeight: selected ? "600" : "400",
+                      }}
+                    >
+                      {f.label}
+                    </Typography>
+                    {selected && <Icon name="check" size="sm" color={TONE_HEX.accent} />}
+                  </Pressable>
+                </View>
+              );
+            })}
+          </ScrollView>
         </View>
       )}
 
@@ -657,35 +664,42 @@ function ConditionRow({
             borderWidth: 1, borderColor: "#e0e0e0", overflow: "hidden",
           }}
         >
-          {ops.map((op, i) => {
-            const selected = op.value === condition.operator;
-            return (
-              <View key={op.value}>
-                {i > 0 && (
-                  <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: "#ebebeb" }} />
-                )}
-                <Pressable
-                  onPress={() => onChangeOperator(op.value)}
-                  style={{
-                    flexDirection: "row", alignItems: "center",
-                    paddingHorizontal: 14, paddingVertical: 11, gap: 10,
-                  }}
-                >
-                  <Typography
-                    type="body-sm"
+          <ScrollView
+            style={{ maxHeight: 220 }}
+            showsVerticalScrollIndicator
+            nestedScrollEnabled
+            keyboardShouldPersistTaps="handled"
+          >
+            {ops.map((op, i) => {
+              const selected = op.value === condition.operator;
+              return (
+                <View key={op.value}>
+                  {i > 0 && (
+                    <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: "#ebebeb" }} />
+                  )}
+                  <Pressable
+                    onPress={() => onChangeOperator(op.value)}
                     style={{
-                      flex: 1,
-                      color: selected ? TONE_HEX.accent : TONE_HEX.foreground,
-                      fontWeight: selected ? "600" : "400",
+                      flexDirection: "row", alignItems: "center",
+                      paddingHorizontal: 14, paddingVertical: 11, gap: 10,
                     }}
                   >
-                    {op.label}
-                  </Typography>
-                  {selected && <Icon name="check" size="sm" color={TONE_HEX.accent} />}
-                </Pressable>
-              </View>
-            );
-          })}
+                    <Typography
+                      type="body-sm"
+                      style={{
+                        flex: 1,
+                        color: selected ? TONE_HEX.accent : TONE_HEX.foreground,
+                        fontWeight: selected ? "600" : "400",
+                      }}
+                    >
+                      {op.label}
+                    </Typography>
+                    {selected && <Icon name="check" size="sm" color={TONE_HEX.accent} />}
+                  </Pressable>
+                </View>
+              );
+            })}
+          </ScrollView>
         </View>
       )}
 
@@ -735,41 +749,48 @@ function ConditionRow({
                 </View>
               ) : (
                 <>
-                  {fd.options?.map((opt, i) => {
-                    const active = condition.values.includes(opt.value);
-                    return (
-                      <View key={opt.value}>
-                        {i > 0 && (
-                          <View
-                            style={{ height: StyleSheet.hairlineWidth, backgroundColor: "#ebebeb" }}
-                          />
-                        )}
-                        <Pressable
-                          onPress={() => onToggleValue(opt.value)}
-                          style={{
-                            flexDirection: "row", alignItems: "center",
-                            paddingHorizontal: 14, paddingVertical: 11, gap: 12,
-                          }}
-                        >
-                          <View
+                  <ScrollView
+                    style={{ maxHeight: 220 }}
+                    showsVerticalScrollIndicator
+                    nestedScrollEnabled
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {fd.options?.map((opt, i) => {
+                      const active = condition.values.includes(opt.value);
+                      return (
+                        <View key={opt.value}>
+                          {i > 0 && (
+                            <View
+                              style={{ height: StyleSheet.hairlineWidth, backgroundColor: "#ebebeb" }}
+                            />
+                          )}
+                          <Pressable
+                            onPress={() => onToggleValue(opt.value)}
                             style={{
-                              width: 18, height: 18,
-                              borderRadius: fd.isArray ? 4 : 9,
-                              backgroundColor: active ? TONE_HEX.accent : "transparent",
-                              borderWidth: active ? 0 : 1.5, borderColor: "#d0d0d0",
-                              alignItems: "center", justifyContent: "center",
+                              flexDirection: "row", alignItems: "center",
+                              paddingHorizontal: 14, paddingVertical: 11, gap: 12,
                             }}
                           >
-                            {active && <Icon name="check" size="sm" color="#ffffff" />}
-                          </View>
-                          <Typography type="body-sm" style={{ flex: 1 }}>
-                            {opt.label}
-                          </Typography>
-                        </Pressable>
-                      </View>
-                    );
-                  })}
-                  {/* Done — only for multi-select */}
+                            <View
+                              style={{
+                                width: 18, height: 18,
+                                borderRadius: fd.isArray ? 4 : 9,
+                                backgroundColor: active ? TONE_HEX.accent : "transparent",
+                                borderWidth: active ? 0 : 1.5, borderColor: "#d0d0d0",
+                                alignItems: "center", justifyContent: "center",
+                              }}
+                            >
+                              {active && <Icon name="check" size="sm" color="#ffffff" />}
+                            </View>
+                            <Typography type="body-sm" style={{ flex: 1 }}>
+                              {opt.label}
+                            </Typography>
+                          </Pressable>
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
+                  {/* Done — only for multi-select, sticky below the capped list */}
                   {fd.isArray && (
                     <Pressable
                       onPress={() => onTogglePicker("value")}
@@ -989,10 +1010,10 @@ export function FilterSheet({
             onPress={onClose}
           />
 
-          {/* Sheet */}
+          {/* Sheet — fixed 90% height so accordions never resize the drawer */}
           <View
             style={{
-              maxHeight: "92%", backgroundColor: "#ffffff",
+              height: "95%", backgroundColor: "#ffffff",
               borderTopLeftRadius: 24, borderTopRightRadius: 24,
             }}
           >
@@ -1032,11 +1053,12 @@ export function FilterSheet({
 
             <Separator />
 
-            {/* Scrollable rows */}
+            {/* Scrollable rows — flex:1 fills whatever height is left between header and footer */}
             <ScrollView
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={{ paddingBottom: 0 }}
+              style={{ flex: 1 }}
             >
               {/* ── Quick filters (3 only) ── */}
               <SectionLabel title="Filter By" />

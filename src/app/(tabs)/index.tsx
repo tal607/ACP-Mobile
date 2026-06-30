@@ -2,9 +2,8 @@ import { Avatar, Chip, Surface, Typography } from "heroui-native";
 import { useState, type JSX } from "react";
 import { Linking, Pressable, ScrollView, View } from "react-native";
 import {
+  AiBrief,
   ActionItemRow,
-  type Activity,
-  ActivityCard,
   CreateContactSheet,
   Icon,
   InitialsAvatar,
@@ -27,7 +26,6 @@ import {
  * ------------------------------------------------------------------ */
 
 const HEADER = {
-  date: "Wednesday, June 4",
   greeting: "Good Morning, Tal",
 };
 
@@ -48,6 +46,8 @@ const NEXT_MEETING = {
   tag: "Prospect",
   meetingUrl: "https://zoom.us/j/123456789",
   email: "david@meridiancapital.com",
+  aiBrief:
+    "First meeting — referred by John Kessler at Summit RE. Lead with fund thesis, have data room ready to send.",
 };
 
 /* ── Later Today card list (Meeting fields only — just for display) ── */
@@ -177,28 +177,13 @@ const ACTION_ITEMS = [
   { id: "a3", label: "Prepare Q2 deck for Meridian Capital" },
 ];
 
-const RECENT_ACTIVITY: Activity[] = [
-  {
-    id: "act1",
-    kind: "note",
-    actor: "Tal",
-    action: "added a",
-    noun: "Note",
-    time: "11:30",
-    title: "Q2 fund performance",
-    desc: "Called to review quarterly returns. Sarah is pleased with the 14.2% net IRR and expressed strong interest in the…",
-  },
-  {
-    id: "act2",
-    kind: "meeting",
-    actor: "Tal",
-    action: "logged a",
-    noun: "Meeting",
-    time: "11:30",
-    title: "Q2 fund performance",
-    desc: "Called to review quarterly returns. Sarah is pleased with the 14.2% net IRR and expressed strong interest in the…",
-  },
-];
+const FUNDRAISING_PULSE = {
+  raised: "$8.8M",
+  target: "$15M",
+  pct: 58,
+  pipeline: 24,
+  pipelineDelta: "+3 this week",
+};
 
 /* ------------------------------------------------------------------ *
  * Home / Today screen
@@ -237,16 +222,11 @@ export default function HomeTab(): JSX.Element {
       />
 
       {/* Header */}
-      <View className="flex-row items-start justify-between">
-        <View className="flex-1 gap-1">
-          <Typography type="body-sm" color="muted">
-            {HEADER.date}
-          </Typography>
-          <Typography className="text-3xl" weight="bold">
-            {HEADER.greeting}
-          </Typography>
-        </View>
-        <View className="flex-row items-center gap-2 ml-3 mt-1">
+      <View className="flex-row items-center justify-between">
+        <Typography className="text-3xl" weight="bold">
+          {HEADER.greeting}
+        </Typography>
+        <View className="flex-row items-center gap-2 ml-3">
           <View>
             <Pressable className="h-10 w-10 rounded-full border border-border items-center justify-center">
               <Icon name="bell" size="lg" />
@@ -278,35 +258,46 @@ export default function HomeTab(): JSX.Element {
         ))}
       </ScrollView>
 
-      {/* Next-meeting hero card */}
-      <Surface className="gap-4 rounded-2xl">
-        <View className="flex-row items-center justify-between">
-          <Chip variant="soft" color="accent" size="sm">
-            <Chip.Label className="text-xs">{m.countdown}</Chip.Label>
-          </Chip>
-          <Typography type="body-sm" color="muted">
-            {m.time} · {m.duration}
-          </Typography>
-        </View>
-
-        <View className="gap-3">
-          <Typography type="h4">{m.type}</Typography>
-          <View className="flex-row items-center gap-3">
-            <InitialsAvatar initials={m.initials} />
-            <View className="flex-1 gap-1">
-              <Typography weight="semibold" className="text-sm">
-                {m.name}
+      <View>
+        <SectionHeader title="Next meeting" />
+        {/* Next-meeting hero card */}
+        <Surface className="gap-3 rounded-2xl">
+          {/* time · duration · type + email pill */}
+          <View className="flex-row items-center justify-between">
+            <Typography type="body-sm" color="muted">
+              {m.time} · {m.duration} · {m.type}
+            </Typography>
+            <Pressable
+              className="flex-row items-center gap-1 rounded-full border border-border px-2.5 py-1"
+              onPress={() => Linking.openURL(`mailto:${m.email}`)}
+            >
+              <Icon name="email" size="sm" />
+              <Typography type="body-sm" className="text-[11px]">
+                Email
               </Typography>
-              <View className="flex-row items-center gap-2">
-                <Typography type="body-sm" color="muted">
-                  {m.company}
-                </Typography>
-                <Tag label={m.tag} />
-              </View>
+            </Pressable>
+          </View>
+
+        {/* Contact row */}
+        <View className="flex-row items-center gap-3">
+          <InitialsAvatar initials={m.initials} />
+          <View className="flex-1 gap-1">
+            <Typography weight="semibold" className="text-sm">
+              {m.name}
+            </Typography>
+            <View className="flex-row items-center gap-2">
+              <Typography type="body-sm" color="muted">
+                {m.company}
+              </Typography>
+              <Tag label={m.tag} />
             </View>
           </View>
         </View>
 
+        {/* AI brief */}
+        <AiBrief text={m.aiBrief} showLabel={false} />
+
+        {/* Primary actions */}
         <View className="flex-row gap-3">
           <PrimaryButton
             size="sm"
@@ -318,14 +309,15 @@ export default function HomeTab(): JSX.Element {
           </PrimaryButton>
           <SecondaryButton
             size="sm"
-            className="flex-1"
-            icon="email"
-            onPress={() => Linking.openURL(`mailto:${m.email}`)}
+            className="flex-1 bg-transparent border border-border"
+            icon="note"
+            onPress={() => setPrepData(DAVID_PREP)}
           >
-            Email
+            Prep
           </SecondaryButton>
         </View>
-      </Surface>
+        </Surface>
+      </View>
 
       {/* Later today */}
       <View>
@@ -341,9 +333,48 @@ export default function HomeTab(): JSX.Element {
         </View>
       </View>
 
+      {/* Fundraising pulse */}
+      <View>
+        <SectionHeader title="Fundraising pulse" />
+        <View className="flex-row gap-3">
+          <Surface className="flex-1 gap-2 rounded-2xl">
+            <Typography type="body-sm" color="muted">
+              Total raised
+            </Typography>
+            <Typography weight="bold" className="text-2xl">
+              {FUNDRAISING_PULSE.raised}
+            </Typography>
+            <View className="h-1 rounded-full bg-border overflow-hidden">
+              <View
+                className="h-full rounded-full bg-accent"
+                style={{ width: `${FUNDRAISING_PULSE.pct}%` }}
+              />
+            </View>
+            <Typography type="body-sm" color="muted">
+              of {FUNDRAISING_PULSE.target} · {FUNDRAISING_PULSE.pct}%
+            </Typography>
+          </Surface>
+          <Surface className="flex-1 gap-2 rounded-2xl">
+            <Typography type="body-sm" color="muted">
+              Prospects
+            </Typography>
+            <Typography weight="bold" className="text-2xl">
+              {FUNDRAISING_PULSE.pipeline}
+            </Typography>
+            <View>
+              <Chip variant="soft" color="success" size="sm">
+                <Chip.Label className="text-xs">
+                  {FUNDRAISING_PULSE.pipelineDelta}
+                </Chip.Label>
+              </Chip>
+            </View>
+          </Surface>
+        </View>
+      </View>
+
       {/* Action items */}
       <View>
-        <SectionHeader title="Action items" count={ACTION_ITEMS.length} />
+        <SectionHeader title="Due today" count={ACTION_ITEMS.length} />
         <Surface className="p-0 rounded-2xl">
           {ACTION_ITEMS.map((item, i) => (
             <ActionItemRow
@@ -355,19 +386,6 @@ export default function HomeTab(): JSX.Element {
             />
           ))}
         </Surface>
-      </View>
-
-      {/* Recent activity */}
-      <View>
-        <SectionHeader title="Recent Activity" count={RECENT_ACTIVITY.length} linkLabel="See all" />
-        <Typography type="body-sm" color="muted" className="mb-3 text-xs">
-          Today
-        </Typography>
-        <View className="gap-3">
-          {RECENT_ACTIVITY.map((item) => (
-            <ActivityCard key={item.id} item={item} />
-          ))}
-        </View>
       </View>
     </Screen>
   );

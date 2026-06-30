@@ -10,7 +10,7 @@ export default function TabsLayout(): JSX.Element {
     >
       <Tabs.Screen name="index" options={{ title: "Home" }} />
       <Tabs.Screen name="contacts" options={{ title: "Contacts" }} />
-      <Tabs.Screen name="calendar" options={{ title: "Calendar" }} />
+      <Tabs.Screen name="offerings" options={{ title: "Offerings" }} />
       <Tabs.Screen name="activity" options={{ title: "Activity" }} />
     </Tabs>
   );

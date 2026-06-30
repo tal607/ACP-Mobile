@@ -4,7 +4,7 @@ import { useMemo, useState, type JSX } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScopedTheme } from "uniwind";
-import { Icon } from "@/components";
+import { Icon, MetricCard } from "@/components";
 import { CONTACTS, type Transaction } from "@/data/contacts";
 import { TONE_HEX, type IconName, type Tone } from "@/theme/tokens";
 
@@ -329,14 +329,28 @@ function TransactionRow({
 }): JSX.Element {
   const style = TX_STYLE[tx.type];
   const isInflow = tx.type === "Distribution";
+  const stripColor = TONE_HEX[style.tone];
 
   return (
     <>
       {showSeparator && <Separator />}
       <Pressable
         className="flex-row items-center px-4 py-3.5 gap-3 active:bg-surface-secondary"
+        style={{ position: "relative" }}
         onPress={onPress}
       >
+        {/* Type color strip — sits within left padding, does not push content */}
+        <View
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 3,
+            backgroundColor: stripColor,
+          }}
+        />
+
         {/* Type + date + optional note snippet */}
         <View className="flex-1 gap-0.5">
           <Typography weight="semibold" className="text-sm">
@@ -494,52 +508,24 @@ export default function PositionPage(): JSX.Element {
 
         {/* KPI summary row */}
         <View className="px-5 pb-6 flex-row gap-3">
-          <Surface className="flex-1 gap-1 rounded-2xl">
-            <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>
-              COMMITTED
-            </Typography>
-            <Typography weight="bold" className="text-base">
-              {fmtShort(position.commitment)}
-            </Typography>
-            {unfunded > 0 && (
-              <Typography
-                type="body-xs"
-                style={{ color: TONE_HEX.warning, fontSize: 11 }}
-              >
-                {fmtShort(position.contribution)} funded
-              </Typography>
-            )}
-          </Surface>
-
-          <Surface className="flex-1 gap-1 rounded-2xl">
-            <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>
-              DISTRIBUTIONS
-            </Typography>
-            <Typography
-              weight="bold"
-              className="text-base"
-              style={{ color: TONE_HEX.success }}
-            >
-              {fmtShort(position.distributions)}
-            </Typography>
-            <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>
-              {(position.ownership * 100).toFixed(1)}% ownership
-            </Typography>
-          </Surface>
-
+          <MetricCard
+            label="Committed"
+            value={fmtShort(position.commitment)}
+            style={{ flex: 1 }}
+          />
+          <MetricCard
+            label="Distributions"
+            value={fmtShort(position.distributions)}
+            valueColor={TONE_HEX.success}
+            style={{ flex: 1 }}
+          />
           {unfunded > 0 && (
-            <Surface className="flex-1 gap-1 rounded-2xl">
-              <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>
-                UNFUNDED
-              </Typography>
-              <Typography
-                weight="bold"
-                className="text-base"
-                style={{ color: TONE_HEX.warning }}
-              >
-                {fmtShort(unfunded)}
-              </Typography>
-            </Surface>
+            <MetricCard
+              label="Unfunded"
+              value={fmtShort(unfunded)}
+              valueColor={TONE_HEX.warning}
+              style={{ flex: 1 }}
+            />
           )}
         </View>
 
@@ -585,35 +571,75 @@ export default function PositionPage(): JSX.Element {
 
         {/* Transactions grouped by year */}
         <View className="px-5 gap-5">
-          {years.length === 0 ? (
-            <View className="items-center py-10">
+          {filteredTxs.length === 0 ? (
+            <View style={{ alignItems: "center", paddingVertical: 48, gap: 10 }}>
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: "#f4f4f5",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Icon name="activity" size="lg" tone="muted" />
+              </View>
               <Typography type="body-sm" color="muted">
-                No transactions
+                {activeSegment === "distributions"
+                  ? "No distributions yet"
+                  : activeSegment === "capital_calls"
+                    ? "No capital calls yet"
+                    : activeSegment === "capital_flow"
+                      ? "No capital flows yet"
+                      : "No transactions yet"}
               </Typography>
             </View>
           ) : (
-            years.map((year) => (
-              <View key={year} className="gap-2">
-                <Typography
-                  type="body-xs"
-                  color="muted"
-                  weight="semibold"
-                  style={{ fontSize: 12 }}
-                >
-                  {year}
-                </Typography>
-                <Surface className="p-0 rounded-2xl overflow-hidden">
-                  {grouped[year].map((tx, i) => (
-                    <TransactionRow
-                      key={tx.id}
-                      tx={tx}
-                      showSeparator={i > 0}
-                      onPress={() => setSelectedTx(tx)}
-                    />
-                  ))}
-                </Surface>
-              </View>
-            ))
+            years.map((year) => {
+              const yearTxs = grouped[year];
+              const yearTotal = yearTxs.reduce((sum, tx) => sum + tx.amount, 0);
+              return (
+                <View key={year} className="gap-2">
+                  {/* Year header band with subtotal */}
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      backgroundColor: "#f5f5f5",
+                      borderRadius: 10,
+                      paddingHorizontal: 12,
+                      paddingVertical: 7,
+                    }}
+                  >
+                    <Typography
+                      weight="semibold"
+                      style={{ fontSize: 13, color: TONE_HEX.foreground }}
+                    >
+                      {year}
+                    </Typography>
+                    <Typography style={{ fontSize: 12, color: TONE_HEX.muted }}>
+                      {yearTxs.length === 1
+                        ? "1 transaction"
+                        : `${yearTxs.length} transactions`}{" "}
+                      · {fmtShort(yearTotal)}
+                    </Typography>
+                  </View>
+
+                  <Surface className="p-0 rounded-2xl overflow-hidden">
+                    {yearTxs.map((tx, i) => (
+                      <TransactionRow
+                        key={tx.id}
+                        tx={tx}
+                        showSeparator={i > 0}
+                        onPress={() => setSelectedTx(tx)}
+                      />
+                    ))}
+                  </Surface>
+                </View>
+              );
+            })
           )}
         </View>
       </ScrollView>

@@ -5,6 +5,7 @@ import { Linking, Pressable, ScrollView, Share, StyleSheet, TextInput, View } fr
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ActivityCard,
+  AiBrief,
   FeedDateSep,
   CollapseCard,
   ContactActionSheet,
@@ -16,11 +17,15 @@ import {
   ActivityFormSheet,
   type ActivityFormKind,
   CreateTaskSheet,
+  MetricCard,
+  OfferingCard,
 } from "@/components";
+import { OFFERINGS } from "@/data/offerings";
 import type { FeedActivity } from "@/data/activities";
 import { recordRecent } from "@/data/recents";
-import { CONTACTS, type ContactDetailData, type Position } from "@/data/contacts";
-import { TONE_HEX, type IconName } from "@/theme/tokens";
+import { toggleFavorite, isFavorite as getIsFavorite } from "@/data/favorites";
+import { CONTACTS, type ContactDetailData, type InvestingProfile, type Position } from "@/data/contacts";
+import { FAVORITE_GOLD, TONE_HEX, type IconName } from "@/theme/tokens";
 
 /* ------------------------------------------------------------------ *
  * Constants
@@ -29,6 +34,7 @@ import { TONE_HEX, type IconName } from "@/theme/tokens";
 const TABS = [
   { id: "details", label: "Details" },
   { id: "activity", label: "Activity" },
+  { id: "profiles", label: "Profiles" },
   { id: "investments", label: "Investments" },
   { id: "offerings", label: "Offerings" },
   { id: "documents", label: "Documents" },
@@ -208,18 +214,8 @@ function DetailsTab({ contact }: { contact: ContactDetailData }): JSX.Element {
 
   return (
     <View className="gap-6">
-      {/* Copilot brief */}
-      {contact.aiBrief && (
-        <Surface className="gap-2 rounded-2xl">
-          <View className="flex-row items-center gap-2">
-            <Icon name="copilot" size="sm" tone="accent" />
-            <Typography type="body-xs" color="muted">
-              Copilot Brief
-            </Typography>
-          </View>
-          <Typography type="body-sm">{contact.aiBrief}</Typography>
-        </Surface>
-      )}
+      {/* AI brief */}
+      {contact.aiBrief && <AiBrief text={contact.aiBrief} />}
 
       {/* Contact info */}
       {hasContactInfo && (
@@ -508,6 +504,126 @@ function PlaceholderTab({ label }: { label: string }): JSX.Element {
 }
 
 /* ------------------------------------------------------------------ *
+ * Profiles tab
+ * ------------------------------------------------------------------ */
+
+const PROFILE_TYPE_STYLE: Record<
+  InvestingProfile["type"],
+  { bg: string; color: string; chipColor: "accent" | "success" | "warning" | "default" }
+> = {
+  Individual: { bg: "#eef4ff", color: "#1d4ed8", chipColor: "accent" },
+  Entity:     { bg: "#fdf4ff", color: "#7e22ce", chipColor: "default" },
+  Trust:      { bg: "#f0fdf4", color: "#166534", chipColor: "success" },
+  Joint:      { bg: "#fff7ed", color: "#c2410c", chipColor: "warning" },
+};
+
+const ACCRED_STYLE: Record<
+  InvestingProfile["accreditationStatus"],
+  { bg: string; color: string; icon: IconName; label: string; chipColor: "success" | "warning" | "default" }
+> = {
+  verified:     { bg: "#f0fdf4", color: "#15803d", icon: "shield", label: "Accredited",   chipColor: "success" },
+  pending:      { bg: "#fff7ed", color: "#c2410c", icon: "time",   label: "Pending",      chipColor: "warning" },
+  not_verified: { bg: "#f4f4f5", color: "#71717a", icon: "portal", label: "Not verified", chipColor: "default" },
+};
+
+function ProfileCard({
+  profile,
+  contactId,
+}: {
+  profile: InvestingProfile;
+  contactId: string;
+}): JSX.Element {
+  const typeStyle = PROFILE_TYPE_STYLE[profile.type];
+  const accred   = ACCRED_STYLE[profile.accreditationStatus];
+
+  const initials = profile.name
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("");
+
+  const summaryParts = [
+    profile.totalCommitment > 0 && `${fmtShort(profile.totalCommitment)} committed`,
+    `${profile.activePositions} position${profile.activePositions !== 1 ? "s" : ""}`,
+    `${profile.attachedContacts.length} contact${profile.attachedContacts.length !== 1 ? "s" : ""}`,
+  ].filter(Boolean).join(" · ");
+
+  return (
+    <Pressable
+      onPress={() =>
+        router.push({
+          pathname: "/profile/[profileId]",
+          params: { profileId: profile.id, contactId },
+        })
+      }
+    >
+      <Surface className="rounded-2xl">
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          {/* Avatar */}
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: typeStyle.bg,
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <Typography weight="semibold" style={{ fontSize: 15, color: typeStyle.color }}>
+              {initials}
+            </Typography>
+          </View>
+
+          {/* Info */}
+          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+            <Typography weight="semibold" style={{ fontSize: 14, lineHeight: 16 }} numberOfLines={1}>
+              {profile.name}
+            </Typography>
+            <Typography style={{ fontSize: 12, color: TONE_HEX.muted }} numberOfLines={1}>
+              {summaryParts}
+            </Typography>
+            <View style={{ flexDirection: "row", gap: 4, flexWrap: "wrap" }}>
+              <Chip variant="soft" color={typeStyle.chipColor} size="sm">
+                <Chip.Label className="text-xs">{profile.type}</Chip.Label>
+              </Chip>
+            </View>
+          </View>
+
+          {/* Chevron */}
+          <Icon name="chevron" size="sm" tone="muted" />
+        </View>
+      </Surface>
+    </Pressable>
+  );
+}
+
+function ProfilesTab({ contact }: { contact: ContactDetailData }): JSX.Element {
+  if (!contact.profiles || contact.profiles.length === 0) {
+    return (
+      <View className="items-center justify-center py-16 gap-2">
+        <Icon name="person" size="lg" tone="muted" />
+        <Typography type="body-sm" color="muted">
+          No profiles yet
+        </Typography>
+        <Typography type="body-xs" color="muted">
+          Profiles are created on the desktop
+        </Typography>
+      </View>
+    );
+  }
+
+  return (
+    <View className="gap-3">
+      {contact.profiles.map((profile) => (
+        <ProfileCard key={profile.id} profile={profile} contactId={contact.id} />
+      ))}
+    </View>
+  );
+}
+
+/* ------------------------------------------------------------------ *
  * Investments tab
  * ------------------------------------------------------------------ */
 
@@ -523,6 +639,7 @@ const fmtShort = (n: number): string => {
   return `$${n.toLocaleString()}`;
 };
 
+
 function PositionCard({
   position,
   contactId,
@@ -532,101 +649,85 @@ function PositionCard({
   contactId: string;
   contactName: string;
 }): JSX.Element {
-  const unfunded = position.commitment - position.contribution;
+  const fundedPct =
+    position.commitment > 0 ? position.contribution / position.commitment : 1;
+
+  const summaryParts = [
+    `${fmtShort(position.contribution)} contributed`,
+    position.distributions > 0 && `${fmtShort(position.distributions)} distributed`,
+    `${(position.ownership * 100).toFixed(1)}% ownership`,
+  ].filter(Boolean).join(" · ");
 
   return (
     <Surface className="p-0 rounded-2xl overflow-hidden">
-      {/* Header: fund name + status */}
-      <View className="px-4 pt-4 pb-3 gap-1">
-        <View className="flex-row items-start justify-between gap-2">
-          <Typography
-            weight="semibold"
-            className="text-base flex-1"
-            numberOfLines={2}
-          >
-            {position.fundName}
-          </Typography>
-          <Chip
-            variant="soft"
-            color={position.status === "Active" ? "success" : "default"}
-            size="sm"
-          >
-            <Chip.Label className="text-xs">{position.status}</Chip.Label>
-          </Chip>
-        </View>
-        <Typography type="body-xs" color="muted">
-          {position.fundType} · Est. {position.vintage}
-        </Typography>
-        <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>
-          {position.profile} · {position.class}
-        </Typography>
-      </View>
-
-      <Separator />
-
-      {/* 2x2 metrics */}
-      <View className="px-4 py-3 gap-3">
-        <View className="flex-row gap-4">
-          <View className="flex-1 gap-0.5">
-            <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>
-              COMMITTED
-            </Typography>
-            <Typography weight="semibold" className="text-sm">
-              {fmtShort(position.commitment)}
-            </Typography>
-          </View>
-          <View className="flex-1 gap-0.5">
-            <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>
-              CONTRIBUTED
-            </Typography>
-            <Typography weight="semibold" className="text-sm">
-              {fmtShort(position.contribution)}
-            </Typography>
-          </View>
-        </View>
-        <View className="flex-row gap-4">
-          <View className="flex-1 gap-0.5">
-            <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>
-              DISTRIBUTIONS
-            </Typography>
+      {/* Main body */}
+      <View style={{ padding: 14, gap: 11 }}>
+        {/* Top row: name left · commitment right */}
+        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
+          <View style={{ flex: 1 }}>
             <Typography
               weight="semibold"
-              className="text-sm"
-              style={{ color: TONE_HEX.success }}
+              style={{ fontSize: 15, marginBottom: 3 }}
+              numberOfLines={2}
             >
-              {fmtShort(position.distributions)}
+              {position.fundName}
             </Typography>
+            <Typography type="body-xs" color="muted" style={{ marginBottom: 8 }}>
+              {position.fundType} · {position.class}
+            </Typography>
+            <Chip
+              variant="soft"
+              color={position.status === "Active" ? "success" : "default"}
+              size="sm"
+            >
+              <Chip.Label className="text-xs">{position.status} · {position.vintage}</Chip.Label>
+            </Chip>
           </View>
-          <View className="flex-1 gap-0.5">
-            <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>
-              OWNERSHIP
+          <View style={{ alignItems: "flex-end", gap: 2 }}>
+            <Typography weight="bold" style={{ fontSize: 18 }}>
+              {fmtShort(position.commitment)}
             </Typography>
-            <Typography weight="semibold" className="text-sm">
-              {(position.ownership * 100).toFixed(1)}%
+            <Typography style={{ fontSize: 10, color: TONE_HEX.muted, fontWeight: "500" }}>
+              COMMITTED
             </Typography>
           </View>
         </View>
-        {unfunded > 0 && (
-          <View className="flex-row items-center gap-1.5">
+
+        {/* Progress bar + summary */}
+        <View style={{ gap: 5 }}>
+          <View
+            style={{
+              height: 5,
+              borderRadius: 3,
+              backgroundColor: "#f0f0f0",
+              overflow: "hidden",
+            }}
+          >
             <View
-              className="h-1.5 w-1.5 rounded-full"
-              style={{ backgroundColor: TONE_HEX.warning }}
+              style={{
+                height: 5,
+                width: `${Math.min(fundedPct * 100, 100)}%`,
+                backgroundColor: fundedPct >= 1 ? TONE_HEX.accent : TONE_HEX.warning,
+                borderRadius: 3,
+              }}
             />
-            <Typography
-              type="body-xs"
-              style={{ color: TONE_HEX.warning, fontSize: 11 }}
-            >
-              {fmtShort(unfunded)} unfunded
-            </Typography>
           </View>
-        )}
+          <Typography style={{ fontSize: 11, color: TONE_HEX.muted }}>
+            {summaryParts}
+          </Typography>
+        </View>
       </View>
 
-      <Separator />
-
-      {/* Transactions link */}
+      {/* Transactions CTA */}
       <Pressable
-        className="flex-row items-center justify-between px-4 py-3 active:bg-surface-secondary"
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+          backgroundColor: `${TONE_HEX.accent}0a`,
+        }}
         onPress={() =>
           router.push({
             pathname: "/position/[positionId]",
@@ -634,13 +735,44 @@ function PositionCard({
           })
         }
       >
-        <Typography type="body-sm" style={{ color: TONE_HEX.accent }}>
+        <Typography style={{ color: TONE_HEX.accent, fontWeight: "600", fontSize: 14 }}>
           {position.transactions.length} Transaction
           {position.transactions.length !== 1 ? "s" : ""}
         </Typography>
         <Icon name="chevron" size="sm" tone="accent" />
       </Pressable>
     </Surface>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * Offerings tab
+ * ------------------------------------------------------------------ */
+
+function OfferingsTab({ contact }: { contact: ContactDetailData }): JSX.Element {
+  const subs = contact.offeringSubscriptions ?? [];
+
+  if (subs.length === 0) {
+    return (
+      <View className="items-center justify-center py-16 gap-2">
+        <Icon name="org" size="lg" tone="muted" />
+        <Typography type="body-sm" color="muted">
+          No offering subscriptions
+        </Typography>
+      </View>
+    );
+  }
+
+  return (
+    <View className="gap-3">
+      {subs.map((sub) => {
+        const offering = OFFERINGS.find((o) => o.id === sub.offeringId);
+        if (!offering) return null;
+        return (
+          <OfferingCard key={sub.offeringId} offering={offering} subscription={sub} />
+        );
+      })}
+    </View>
   );
 }
 
@@ -660,39 +792,22 @@ function InvestmentsTab({
     );
   }
 
-  const totalCommitted = contact.positions.reduce(
-    (sum, p) => sum + p.commitment,
-    0
-  );
-  const totalDistributions = contact.positions.reduce(
-    (sum, p) => sum + p.distributions,
-    0
-  );
+  const totalCommitted = contact.positions.reduce((sum, p) => sum + p.commitment, 0);
+  const totalContributed = contact.positions.reduce((sum, p) => sum + p.contribution, 0);
+  const totalDistributions = contact.positions.reduce((sum, p) => sum + p.distributions, 0);
 
   return (
     <View className="gap-4">
-      {/* Summary header */}
-      <View className="flex-row gap-3">
-        <Surface className="flex-1 gap-1 rounded-2xl">
-          <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>
-            TOTAL COMMITTED
-          </Typography>
-          <Typography weight="bold" className="text-lg">
-            {fmtShort(totalCommitted)}
-          </Typography>
-        </Surface>
-        <Surface className="flex-1 gap-1 rounded-2xl">
-          <Typography type="body-xs" color="muted" style={{ fontSize: 11 }}>
-            DISTRIBUTIONS
-          </Typography>
-          <Typography
-            weight="bold"
-            className="text-lg"
-            style={{ color: TONE_HEX.success }}
-          >
-            {fmtShort(totalDistributions)}
-          </Typography>
-        </Surface>
+      {/* Summary header — 3 metric cards */}
+      <View className="flex-row gap-2">
+        <MetricCard label="Committed" value={fmtShort(totalCommitted)} style={{ flex: 1 }} />
+        <MetricCard label="Contributed" value={fmtShort(totalContributed)} style={{ flex: 1 }} />
+        <MetricCard
+          label="Distributions"
+          value={fmtShort(totalDistributions)}
+          valueColor={TONE_HEX.success}
+          style={{ flex: 1 }}
+        />
       </View>
 
       {/* Position cards */}
@@ -716,7 +831,7 @@ export default function ContactPage(): JSX.Element {
   const { id } = useLocalSearchParams<{ id: string }>();
   const contact = CONTACTS.find((c) => c.id === id);
   const [activeTab, setActiveTab] = useState<TabId>("details");
-  const [isFavorite, setIsFavorite] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(() => getIsFavorite(id));
   const [actionSheetOpen, setActionSheetOpen] = useState(false);
 
   // Activity state
@@ -816,7 +931,6 @@ export default function ContactPage(): JSX.Element {
       <ContactActionSheet
         visible={actionSheetOpen}
         onClose={() => setActionSheetOpen(false)}
-        email={contact.email}
       />
 
       {/* ── Fixed nav bar ────────────────────────────────────────── */}
@@ -834,14 +948,8 @@ export default function ContactPage(): JSX.Element {
           <Icon name="back" size="md" tone="foreground" />
         </Pressable>
 
-        {/* Title */}
-        <Typography
-          weight="semibold"
-          className="text-base flex-1 text-center"
-          numberOfLines={1}
-        >
-          {contact.name}
-        </Typography>
+        {/* Spacer (name shown in profile header below) */}
+        <View className="flex-1" />
 
         {/* Right actions */}
         <View className="flex-row items-center gap-1">
@@ -868,24 +976,16 @@ export default function ContactPage(): JSX.Element {
 
           {/* Favorite */}
           <Pressable
-            onPress={() => setIsFavorite((f) => !f)}
+            onPress={() => setIsFavorite(toggleFavorite(id))}
             className="h-9 w-9 items-center justify-center rounded-full"
             style={{ backgroundColor: "#f0f0f0" }}
           >
             <Icon
               name={isFavorite ? "favoriteFilled" : "favorite"}
               size="md"
-              tone={isFavorite ? "danger" : "foreground"}
+              tone="foreground"
+              color={isFavorite ? FAVORITE_GOLD : undefined}
             />
-          </Pressable>
-
-          {/* More options */}
-          <Pressable
-            onPress={() => setActionSheetOpen(true)}
-            className="h-9 w-9 items-center justify-center rounded-full"
-            style={{ backgroundColor: "#f0f0f0" }}
-          >
-            <Icon name="more" size="md" tone="foreground" />
           </Pressable>
         </View>
       </View>
@@ -944,12 +1044,9 @@ export default function ContactPage(): JSX.Element {
               onPress={() => {}}
             />
             <ActionButton
-              icon="sendInvite"
-              label="Data Room"
-              onPress={() =>
-                contact.dataRoomUrl && Linking.openURL(contact.dataRoomUrl)
-              }
-              disabled={!contact.dataRoomUrl}
+              icon="more"
+              label="More"
+              onPress={() => setActionSheetOpen(true)}
             />
           </View>
         </View>
@@ -1002,8 +1099,9 @@ export default function ContactPage(): JSX.Element {
               onActivityPress={openActivityDetail}
             />
           )}
+          {activeTab === "profiles" && <ProfilesTab contact={contact} />}
           {activeTab === "investments" && <InvestmentsTab contact={contact} />}
-          {activeTab === "offerings" && <PlaceholderTab label="Offerings" />}
+          {activeTab === "offerings" && <OfferingsTab contact={contact} />}
           {activeTab === "documents" && <PlaceholderTab label="Documents" />}
         </View>
       </ScrollView>

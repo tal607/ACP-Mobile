@@ -1,4 +1,7 @@
 // UI primitives
+export { AiBrief } from "./ui/AiBrief";
+export { MetricCard } from "./ui/MetricCard";
+export { OfferingCard } from "./ui/OfferingCard";
 export { BottomNav } from "./ui/BottomNav";
 export { CountBadge } from "./ui/CountBadge";
 export { Icon } from "./ui/Icon";

@@ -11,6 +11,7 @@ import {
 import { ScopedTheme } from "uniwind";
 import { TONE_HEX } from "@/theme/tokens";
 import { ActionItemRow } from "./ActionItemRow";
+import { AiBrief } from "./ui/AiBrief";
 import { Icon } from "./ui/Icon";
 import { InitialsAvatar } from "./ui/InitialsAvatar";
 import { PillButton } from "./ui/PillButton";
@@ -178,18 +179,10 @@ export function ContactSheet({
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
             >
-              {/* Copilot brief */}
+              {/* AI brief */}
               {data.aiBrief && (
                 <View className="mb-6">
-                  <Surface className="gap-2 rounded-2xl">
-                    <View className="flex-row items-center gap-2">
-                      <Icon name="copilot" size="sm" tone="accent" />
-                      <Typography type="body-xs" color="muted">
-                        Copilot Brief
-                      </Typography>
-                    </View>
-                    <Typography type="body-sm">{data.aiBrief}</Typography>
-                  </Surface>
+                  <AiBrief text={data.aiBrief} />
                 </View>
               )}
 
