@@ -2,6 +2,8 @@
 export { AiBrief } from "./ui/AiBrief";
 export { MetricCard } from "./ui/MetricCard";
 export { OfferingCard } from "./ui/OfferingCard";
+export { OfferingMetricsStrip } from "./ui/OfferingMetricsStrip";
+export { SegmentedControl } from "./ui/SegmentedControl";
 export { BottomNav } from "./ui/BottomNav";
 export { CountBadge } from "./ui/CountBadge";
 export { Icon } from "./ui/Icon";
@@ -35,6 +37,8 @@ export {
 } from "./FilterSheet";
 export { CollapseCard } from "./CollapseCard";
 export { ProspectCard } from "./ProspectCard";
+export { ProspectRow } from "./ProspectRow";
+export { ProspectListView } from "./ProspectListView";
 export { KanbanColumn } from "./KanbanColumn";
 export { KanbanBoard } from "./KanbanBoard";
 export { ContactActionSheet } from "./ContactActionSheet";

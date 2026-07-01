@@ -89,6 +89,9 @@ export const ICONS = {
   copilot: { lib: "mci", name: "star-four-points" },
   // Kanban drag handle
   grip: { lib: "mci", name: "drag-vertical" },
+  // View toggles (list / board)
+  viewList: "list-outline",
+  viewBoard: { lib: "mci", name: "view-column" },
   // contact actions / details
   trash: "trash-outline",
   portal: "eye-outline",
