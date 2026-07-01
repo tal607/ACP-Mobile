@@ -1,21 +1,144 @@
-# MobileACP Figma — Session Memory
+# MobileACP — Session Memory
 > Living file. Rewrite in place at the end of each session. Do not append.
-> Last updated: 2026-06-22
+> Last updated: 2026-07-01
 
 ---
 
 ## HOW TO USE THIS FILE
-At the start of any new Figma session for MobileACP, say **"continue mobile figma"** and Claude will read this file first.
-At the end of a session, say **"update memory"** and Claude will rewrite this file with the current state.
+
+- **Prototype sessions** — say **"continue mobile acp prototype"** and Claude will read this file first.
+- **Figma sessions** — say **"continue mobile figma"** and Claude will read this file first.
+- At the end of any session, say **"update memory"** and Claude will rewrite this file with the current state.
 
 ---
 
-## What this covers
-Figma work for the MobileACP React Native app. Source code lives in `mobile-acp-app/src/`. The Figma file is the "📱 Mobile" file. Design uses HeroUI Kit V3 Community as the linked component library.
+## Project overview
+
+React Native / Expo Router app prototyping the mobile version of ACP (Agora Control Panel). Running at **http://localhost:8081/**. Source in `~/Desktop/mobile-acp-app/src/`.
+
+Two-tier design system:
+- CSS tokens in `src/global.css` (colors, radius, borders)
+- Shared components in `src/components/` and `src/components/ui/`
 
 ---
 
-## Key references
+## Agora design tokens (JS-side — `src/theme/tokens.ts`)
+
+| Token | Value |
+|-------|-------|
+| accent | `#2F54EB` |
+| foreground | `#434343` |
+| muted | `#8C8C8C` |
+| background | `#FCFCFC` |
+| surface | `#FFFFFF` |
+| border | `#F0F0F0` |
+
+Icon libraries available: Ionicons (default), MaterialIcons (`lib: "material"`), MaterialCommunityIcons (`lib: "mci"`). All rendered via `<Icon name="..." />`.
+
+---
+
+## Routing structure
+
+```
+src/app/
+  (tabs)/
+    index.tsx          — Home screen
+    contacts.tsx       — Contacts tab
+    offerings.tsx      — Offerings list
+    ...
+  offering/
+    [offeringId].tsx   — Offering detail page (active development)
+  prospect/
+    [prospectId].tsx   — Prospect detail page (placeholder)
+```
+
+---
+
+## Components inventory (`src/components/`)
+
+### UI primitives (`src/components/ui/`)
+
+| Component | Description |
+|-----------|-------------|
+| `MetricCard` | Label + bold value + optional progress bar. Used in 3-up rows. |
+| `OfferingCard` | Offering list card with progress bar + status chip. Navigates to offering detail. |
+| `OfferingMetricsStrip` | 3-tile horizontal row (Raised/Prospects/Soft Committed) with full-height dividers. Built but currently replaced by MetricCard row in offering page. |
+| `SegmentedControl` | 2-option icon-only pill toggle. EFEFEF container, white+shadow on active tile. Props: `options: [Option, Option]`, `value`, `onChange`. Supports `iconName` or `label` per option. |
+| `Icon` | Unified icon component. Size accepts `"sm"/"md"/"lg"` or a number. Color accepts `tone` (semantic) or `color` (hex). |
+| `Screen`, `BottomNav`, `SectionHeader`, etc. | Standard layout primitives |
+
+### Domain components
+
+| Component | Description |
+|-----------|-------------|
+| `ProspectCard` | Kanban card. Drag handle (visual only) + name + step·days + amount. 3px colored left border. |
+| `ProspectRow` | Compact list row. Name + amount (top line) + step·days (second line) + chevron. 3px colored left border. |
+| `ProspectListView` | SectionList grouped by `KANBAN_STAGES` order. Stage headers (dot + name + count badge). Empty stages hidden. Accepts `stages`, `stageColors`, `prospects`, `onPressProspect`. |
+| `KanbanColumn` | Single stage column. Header + nested vertical ScrollView of ProspectCards. `alignSelf: "stretch"`. |
+| `KanbanBoard` | Horizontal ScrollView of KanbanColumns. `COLUMN_WIDTH = SCREEN_WIDTH - 72` for ~50px peek. |
+
+---
+
+## Offering detail page (`/offering/[offeringId]`)
+
+Current layout (top to bottom):
+
+1. **Nav header** — circular back button (F5F5F5) + centered offering name + more icon
+2. **Metric cards row** — 3 `MetricCard` components, `flex: 1` each, white bg with border-bottom:
+   - Raised (with progress bar via `progress` prop)
+   - Prospects
+   - Soft Committed
+3. **Toolbar row** — search bar (`flex: 1`, F5F5F5 bg, `clearButtonMode="while-editing"`) + `SegmentedControl` (viewList/viewBoard icons)
+4. **Content** — swaps between `ProspectListView` (default) and `KanbanBoard`
+
+Key state:
+- `view: "list" | "kanban"` — defaults to `"list"`
+- `query: string` — filters `filteredProspects` passed to both views; metrics always show totals
+
+---
+
+## Data model (`src/data/offerings.ts`)
+
+**`SubscriptionStage`** union: `"Hasn't Started" | "Started" | "Counter Sign" | "Waitlist" | "Completed" | "Signed"`
+
+**`KANBAN_STAGES`**: `["Hasn't Started", "Started", "Counter Sign", "Waitlist", "Completed"]`
+
+**`STAGE_CONFIG`** — color + label per stage:
+
+| Stage | Color |
+|-------|-------|
+| Hasn't Started | `#8C8C8C` |
+| Started | `#531DAB` |
+| Counter Sign | `#0958D9` |
+| Waitlist | `D46B08` |
+| Completed | `#389E0D` |
+| Signed | `#389E0D` |
+
+**`Prospect`** type: `id, offeringId, name, stage, subscriptionStep, daysInStage, subscriptionAmount?, softCommitment?, organization?, staffMember?, dataRoomAccess`
+
+**`getProspectsForOffering(offeringId)`** — helper to filter `PROSPECTS` by offering. 11 mock prospects exist for `off-1` (Agora Multifamily Fund III).
+
+---
+
+## Icon tokens (relevant additions)
+
+```ts
+grip:      { lib: "mci", name: "drag-vertical" }   // kanban drag handle
+viewList:  "list-outline"                           // Ionicons list view
+viewBoard: { lib: "mci", name: "view-column" }      // MCI kanban view
+```
+
+---
+
+## Pending work
+
+1. **Prospect detail page** (`/prospect/[prospectId]`) — currently a placeholder. User said "later on I will define and design it more." Shows name + stage + "coming soon".
+2. **Drag-and-drop kanban** — drag handle (grip icon) is visual only. Full drag between columns is v2 (requires `react-native-draggable-flatlist` or similar).
+3. **Remaining screens** — Contacts detail, Tasks, Home screen refinements.
+
+---
+
+## Figma reference
 
 | Item | Value |
 |------|-------|
@@ -24,94 +147,15 @@ Figma work for the MobileACP React Native app. Source code lives in `mobile-acp-
 | Target page | 🚧 Design in Progress (id: `1:5`) |
 | HeroUI Kit V3 Community file key | `csQ4eMx4m2m622SdraZ3mi` |
 | Desktop Bridge plugin | Figma Desktop Bridge (MCP Bridge) — cloud relay, pair with a code each session |
-| Source screen | `mobile-acp-app/src/app/(tabs)/index.tsx` |
 
----
-
-## Current state
-
-**Home Screen frame** — complete. Named "Home Screen", 390x844px, VERTICAL auto-layout, `itemSpacing=13`. Located on "🚧 Design in Progress" page. Contains 6 sections using real HeroUI component instances.
-
-| Section | Height | HeroUI components used |
-|---------|--------|----------------------|
-| Header | 41px | Avatar (md, initials) |
-| Quick Actions | 36px | Button (primary/outline/ghost, md) |
-| Next Meeting Card | 148px | Chip (soft, sm), Button (outline, sm) |
-| Later Today | 161px | Chip (accent/success/warning, sm) |
-| Action Items | 137px | Checkbox (default) |
-| Recent Activity | 176px | Avatar (sm), Separator (tertiary/horizontal) |
-
-Native Figma frames (not HeroUI Card) used for card containers and section wrappers.
-
----
-
-## HeroUI component keys (from HeroUI Kit V3 Community library)
-
-These are component variant keys for `figma.importComponentByKeyAsync(key)`:
-
-**Button**
-- Primary / md: `3c77e7aafc5d53b7a5a7df8ab22cdeaeb5df5b6e` (confirm key in library if needed)
-- Property names: `label#2218:8`, `showPrefix#2218:6`, `showSuffix#2218:4`
-
-**Chip**
-- sm variant keys vary by color/style — query the library for exact keys
-- Property names: `label#2489:53`, `showPrefix#2489:71`, `showSuffix#2489:77`
-
-**Avatar**
-- Property names: `value#2595:0`
-
-**Checkbox**
-- Key: `29b379945ca646190c66b2d31743fa007effcf13`
-- Property names: `title#2450:6`, `description#2450:5`, `showDescription#2450:7`, `showError#2450:15`
-
-**Separator**
-- Keys: query library for tertiary/horizontal variant
-
-> Note: Always verify keys against the live library at session start — they can change if the library file updates.
-
----
-
-## Critical Figma Plugin API patterns
-
-```javascript
-// CORRECT: set FILL after appendChild
-parent.appendChild(child);
-child.layoutSizingHorizontal = 'FILL';  // NOT before appendChild
-
-// Import a component from the linked HeroUI library
-const comp = await figma.importComponentByKeyAsync(key);
-const inst = comp.createInstance();
-inst.setProperties({'label#2218:8': 'My Label', 'showPrefix#2218:6': false});
-
-// Fix collapsed frames (HORIZONTAL layout height = 10px bug)
-// counterAxisSizingMode = 'AUTO' for HORIZONTAL frames
-// primaryAxisSizingMode = 'AUTO' for VERTICAL frames
-
-// Font style names for Inter
-// Use "Regular", "Medium", "Semi Bold" (NOT "SemiBold")
-```
-
----
-
-## HeroUI color palette
-- Primary: `#006FEE`
-- Background: `#FFFFFF`
-- Surface: `#FAFAFA` / `#F0F9FF`
-- Text: `#11181C`
-- Muted: `#71717A`
-- Border: `#E4E4E7`
-
----
-
-## Next priorities
-1. Design remaining screens: Dashboard detail, Contacts, Tasks, Settings
-2. Consider linking HeroUI Pro native kit if a license becomes available (heroui.pro)
-3. Add interactive prototype connections between screens
+**Home Screen frame** — complete. 390x844px, VERTICAL auto-layout, `itemSpacing=13`. 6 sections: Header, Quick Actions, Next Meeting Card, Later Today, Action Items, Recent Activity.
 
 ---
 
 ## Working rules
-- Always re-pair the Desktop Bridge plugin at the start of each session (it disconnects between sessions)
-- Probe the HeroUI library for component keys before scripting — do not hardcode keys without verifying
-- Use native frames for card/section containers; use HeroUI instances only for interactive elements (buttons, chips, avatars, checkboxes, separators)
+
 - No em-dashes in any generated output
+- Never hardcode Figma component keys without verifying against the live library
+- Metrics rows always reflect totals, never filtered counts
+- `OfferingMetricsStrip` still exists in the codebase but is not used in the offering page (replaced by MetricCard row) — do not delete it
+- Pre-existing TypeScript errors in `ContactActionSheet`, `CreateContactSheet`, `MultiPrepSheet`, `PrepSheet` (absoluteFillObject, "regular" TextWeight, disabled prop) — do not touch
